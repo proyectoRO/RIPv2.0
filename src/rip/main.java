@@ -7,8 +7,9 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Timer;
+import java.util.TimerTask;
 
-public class main {
+public class main extends TimerTask{
 
     public static rip.nodo nodo = new nodo();
 
@@ -25,7 +26,7 @@ public class main {
             System.out.println("IP: " + hostIP + "\n" + "Name: " + hostName);
             nodo.setIP(hostIP);
             nodo.setNombre(hostName);
-            nodo.setPuerto("5512");
+            nodo.setPuerto(5512);
             parseTopo(ruta, hostIP);
             System.out.println(nodo.toString());
             System.out.println("Llamando a tabla de encaminamiento...");
@@ -37,17 +38,14 @@ public class main {
             System.out.println("Estableciendo comunicacion...");
             byte mensajeCliente[] = new byte[1024];
             Timer tiempo = new Timer();
-            tiempo.schedule(new modoCliente(), 10000, 10000);
-            DatagramSocket socketUDP = new DatagramSocket(7000);
+            tiempo.schedule(new main(), 10000, 10000);
+            DatagramSocket socketUDP = new DatagramSocket(5050);
             byte rip[] = riptobyte();
 
             while (true) {
                 System.out.println("\n\nRIP en modo servidor");
                 DatagramPacket peticion = new DatagramPacket(mensajeCliente, mensajeCliente.length);
                 socketUDP.receive(peticion);
-                byte mensajeR[] = Arrays.copyOfRange(peticion.getData(), 0, peticion.getLength());
-                String mensajeRecibido = new String(mensajeR);
-                System.out.println("El mensaje que el servidor recibe del cliente es: " + mensajeRecibido);
                 DatagramPacket datagramaServidor = new DatagramPacket(rip, rip.length, peticion.getAddress(), peticion.getPort());
                 socketUDP.send(datagramaServidor);
             }
@@ -57,6 +55,7 @@ public class main {
         }
 
     }
+
 
     public static byte[] riptobyte() {
         /*
@@ -294,6 +293,59 @@ public class main {
                 return "";
             }
         }
+    }
+
+    public void run() {
+        DatagramSocket socketUDP = null;
+        InetAddress ipv4,mask,nextHop;
+        System.out.println("\n\nRIP en modo cliente");
+        byte[] mensaje = "cliente".getBytes();
+        byte[] mensajeRecibido = new byte[1024];
+        try {
+            ipv4 = InetAddress.getByName("192.168.0.156");
+            socketUDP = new DatagramSocket();
+            socketUDP.setSoTimeout(2000);
+            DatagramPacket peticionUDP = new DatagramPacket(mensaje, mensaje.length, ipv4, 7000);
+            socketUDP.send(peticionUDP);
+            DatagramPacket datagramaRecibido = new DatagramPacket(mensajeRecibido,mensajeRecibido.length);
+            socketUDP.receive(datagramaRecibido);
+            mensajeRecibido = Arrays.copyOfRange(datagramaRecibido.getData(),0,datagramaRecibido.getLength());
+            ByteArrayOutputStream bufferArray= new ByteArrayOutputStream();
+            bufferArray.write(mensajeRecibido[8]);
+            bufferArray.write(mensajeRecibido[9]);
+            bufferArray.write(mensajeRecibido[10]);
+            bufferArray.write(mensajeRecibido[11]);
+            byte ip[] = bufferArray.toByteArray();
+            bufferArray.reset();
+            bufferArray.write(mensajeRecibido[12]);
+            bufferArray.write(mensajeRecibido[13]);
+            bufferArray.write(mensajeRecibido[14]);
+            bufferArray.write(mensajeRecibido[15]);
+            byte submask[] = bufferArray.toByteArray();
+            bufferArray.reset();
+            bufferArray.write(mensajeRecibido[16]);
+            bufferArray.write(mensajeRecibido[17]);
+            bufferArray.write(mensajeRecibido[18]);
+            bufferArray.write(mensajeRecibido[19]);
+            byte nextH[] = bufferArray.toByteArray();
+            ipv4 = InetAddress.getByAddress(ip);
+            mask = InetAddress.getByAddress(submask);
+            nextHop = InetAddress.getByAddress(nextH);
+            System.out.println("Paquete recibido con exito.");
+            System.out.println("IPv4: " + ipv4.getHostAddress() + " || Mascara de subred: " + mask.getHostAddress() + " || Siguiente Salto: " + nextHop.getHostAddress());
+            prueba();
+        } catch (Exception e) {
+            socketUDP.close();
+        }
+
+    }
+
+    public static void prueba(){
+        System.out.println("Esto es una prueba, si entra, siuu");
+        for (int i = 0; i < nodo.getTablaEncaminamiento().size(); i++) {
+            System.out.println(nodo.getTablaEncaminamiento().get(i).getIPdestino());
+        }
+
     }
 
 }

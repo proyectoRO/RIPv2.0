@@ -4,13 +4,13 @@ import java.util.ArrayList;
 
 public class nodo {
 	
-	private String nombre;
-	private String IP;
-	private ArrayList<nodoVecino> vecinos = new ArrayList<>();
-	private Boolean subred=false;
-	private String puerto;
-	private ArrayList<subred> subredes = new ArrayList<>();
-	private ArrayList<tupla> tablaEncaminamiento = new ArrayList<tupla>();
+	protected String nombre;
+	protected String IP;
+	protected ArrayList<nodoVecino> vecinos = new ArrayList<>();
+	protected Boolean subred=false;
+	protected int puerto;
+	protected ArrayList<subred> subredes = new ArrayList<>();
+	protected ArrayList<tupla> tablaEncaminamiento = new ArrayList<tupla>();
 	
 	public nodo(){
 	}
@@ -18,7 +18,7 @@ public class nodo {
 	public nodo(String nombre, String IP){
 		this.nombre = nombre;
 		this.IP = IP;
-		this.puerto = "5512";
+		this.puerto = 5512;
 		this.vecinos = new ArrayList<nodoVecino>();
 		this.subredes = new ArrayList<subred>();
 		this.tablaEncaminamiento = new ArrayList<tupla>();
@@ -28,12 +28,12 @@ public class nodo {
 		this.nombre = nombre;
 		this.IP = IP;
 		this.vecinos = vecinos;
-		this.puerto = "5512";
+		this.puerto = 5512;
 		this.subredes = new ArrayList<subred>();
 		this.tablaEncaminamiento = new ArrayList<tupla>();
 	}
 	
-	public nodo(String nombre, String IP, ArrayList<nodoVecino> vecinos, String puerto){
+	public nodo(String nombre, String IP, ArrayList<nodoVecino> vecinos, int puerto){
 		this.nombre = nombre;
 		this.IP = IP;
 		this.vecinos = vecinos;
@@ -74,11 +74,11 @@ public class nodo {
 		this.subred = subred;
 	}
 
-	public String getPuerto() {
+	public int getPuerto() {
 		return puerto;
 	}
 
-	public void setPuerto(String puerto) {
+	public void setPuerto(int puerto) {
 		this.puerto = puerto;
 	}
 
@@ -105,7 +105,7 @@ public class nodo {
 				datos = datos +"\n"+ substr;
 			}
 		}
-		return ("Nombre del nodo: "+this.nombre+", IP: "+this.IP+", puerto: "+this.puerto+"\n\n"+datos);
+		return ("Nombre del nodo: "+this.nombre+", IP: "+this.IP+", puerto: "+ this.puerto+"\n\n"+datos);
 	}
 	
 	/*
