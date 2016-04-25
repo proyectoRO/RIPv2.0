@@ -5,6 +5,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Timer;
 
 public class main {
@@ -34,20 +35,20 @@ public class main {
 
             // Socket UDP.
             System.out.println("Estableciendo comunicacion...");
-            InetAddress ipv4 = InetAddress.getByName("192.168.0.45");
-            DatagramSocket socketUDP = new DatagramSocket(5050);
-            byte[] mensajeEnviar = ipv4.getAddress();
-            byte[] mensajeCliente = new byte[8];
+            byte mensajeCliente[] = new byte[1024];
             Timer tiempo = new Timer();
             tiempo.schedule(new modoCliente(), 10000, 10000);
+            DatagramSocket socketUDP = new DatagramSocket(7000);
+            byte rip[] = riptobyte();
 
             while (true) {
                 System.out.println("\n\nRIP en modo servidor");
                 DatagramPacket peticion = new DatagramPacket(mensajeCliente, mensajeCliente.length);
                 socketUDP.receive(peticion);
-                String mensajeRecibido = new String(peticion.getData());
+                byte mensajeR[] = Arrays.copyOfRange(peticion.getData(), 0, peticion.getLength());
+                String mensajeRecibido = new String(mensajeR);
                 System.out.println("El mensaje que el servidor recibe del cliente es: " + mensajeRecibido);
-                DatagramPacket datagramaServidor = new DatagramPacket(mensajeEnviar, mensajeEnviar.length, peticion.getAddress(), peticion.getPort());
+                DatagramPacket datagramaServidor = new DatagramPacket(rip, rip.length, peticion.getAddress(), peticion.getPort());
                 socketUDP.send(datagramaServidor);
             }
 
@@ -55,6 +56,78 @@ public class main {
             e.printStackTrace();
         }
 
+    }
+
+    public static byte[] riptobyte() {
+        /*
+            RIP PKT FORMAT
+
+            ...................................................
+            comand(1)     |    version(1)   |   must be zero(2)
+            ...................................................
+                            RIP ENTRY(20)
+            ...................................................
+
+
+             RIP ENTRY:
+
+             ..................................................
+             address family identifier (2)  |    Route Tag (2)
+             ..................................................
+                                   IPv4 address (4)
+             ..................................................
+                                   Subnet Mask (4)
+             ..................................................
+                                    Next Hop (4)
+             ..................................................
+                                     Metric (4)
+             ..................................................
+             */
+
+        ByteArrayOutputStream arrayBits = null;
+        InetAddress ip;
+        InetAddress mask;
+        InetAddress siguienteSalto;
+        try {
+            ip = InetAddress.getByName("192.168.0.15");
+            mask = InetAddress.getByName("255.255.255.0");
+            siguienteSalto = InetAddress.getByName("192.168.10.2");
+            byte[] comand = new byte[1];
+            byte[] version = new byte[1];
+            byte[] mbz = new byte[2];
+            byte[] addfi = new byte[2];
+            byte[] routeTag = new byte[2];
+            byte[] ipv4 = new byte[4];
+            byte[] subMask = new byte[4];
+            byte[] nextHop = new byte[4];
+            byte[] metric = new byte[4];
+
+            comand = "2".getBytes();
+            version = "2".getBytes();
+            mbz = "00".getBytes();
+            addfi = "xx".getBytes();
+            routeTag = "00".getBytes();
+            ipv4 = ip.getAddress();
+            subMask = mask.getAddress();
+            nextHop = siguienteSalto.getAddress();
+            metric = "0001".getBytes();
+
+            arrayBits = new ByteArrayOutputStream();
+            arrayBits.write(comand);
+            arrayBits.write(version);
+            arrayBits.write(mbz);
+            arrayBits.write(addfi);
+            arrayBits.write(routeTag);
+            arrayBits.write(ipv4);
+            arrayBits.write(subMask);
+            arrayBits.write(nextHop);
+            arrayBits.write(metric);
+            return arrayBits.toByteArray();
+
+        } catch (Exception e) {
+            e.getMessage();
+        }
+        return arrayBits.toByteArray();
     }
 
 
