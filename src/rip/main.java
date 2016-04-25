@@ -4,18 +4,11 @@ import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 
-public class main extends TimerTask{
+public class main extends TimerTask {
 
     public static rip.nodo nodo = new nodo();
-
-    /*
-    Nota: nodoVecino debe ser hija de nodo. Se estan implementando metodos duplicados.
-     */
 
     public static void main(String args[]) {
         try {
@@ -40,13 +33,12 @@ public class main extends TimerTask{
             Timer tiempo = new Timer();
             tiempo.schedule(new main(), 10000, 10000);
             DatagramSocket socketUDP = new DatagramSocket(5050);
-            byte rip[] = riptobyte();
 
             while (true) {
                 System.out.println("\n\nRIP en modo servidor");
                 DatagramPacket peticion = new DatagramPacket(mensajeCliente, mensajeCliente.length);
                 socketUDP.receive(peticion);
-                DatagramPacket datagramaServidor = new DatagramPacket(rip, rip.length, peticion.getAddress(), peticion.getPort());
+                DatagramPacket datagramaServidor = new DatagramPacket(riptobyte(), riptobyte().length, peticion.getAddress(), peticion.getPort());
                 socketUDP.send(datagramaServidor);
             }
 
@@ -82,46 +74,37 @@ public class main extends TimerTask{
                                      Metric (4)
              ..................................................
              */
-
         ByteArrayOutputStream arrayBits = null;
         InetAddress ip;
         InetAddress mask;
         InetAddress siguienteSalto;
         try {
-            ip = InetAddress.getByName("192.168.0.15");
-            mask = InetAddress.getByName("255.255.255.0");
-            siguienteSalto = InetAddress.getByName("192.168.10.2");
-            byte[] comand = new byte[1];
-            byte[] version = new byte[1];
-            byte[] mbz = new byte[2];
-            byte[] addfi = new byte[2];
-            byte[] routeTag = new byte[2];
-            byte[] ipv4 = new byte[4];
-            byte[] subMask = new byte[4];
-            byte[] nextHop = new byte[4];
-            byte[] metric = new byte[4];
-
-            comand = "2".getBytes();
-            version = "2".getBytes();
-            mbz = "00".getBytes();
-            addfi = "xx".getBytes();
-            routeTag = "00".getBytes();
-            ipv4 = ip.getAddress();
-            subMask = mask.getAddress();
-            nextHop = siguienteSalto.getAddress();
-            metric = "0001".getBytes();
-
             arrayBits = new ByteArrayOutputStream();
+            byte comand[] = "2".getBytes();
+            byte version[] = "2".getBytes();
+            byte mbz[] = "00".getBytes();
             arrayBits.write(comand);
             arrayBits.write(version);
             arrayBits.write(mbz);
-            arrayBits.write(addfi);
-            arrayBits.write(routeTag);
-            arrayBits.write(ipv4);
-            arrayBits.write(subMask);
-            arrayBits.write(nextHop);
-            arrayBits.write(metric);
-            return arrayBits.toByteArray();
+            for (int i = 0; i < nodo.getTablaEncaminamiento().size(); i++) {
+                ip = InetAddress.getByName(nodo.getTablaEncaminamiento().get(i).getIPdestino());
+                mask = InetAddress.getByName("255.255.255.0");
+                String nh[] = nodo.getTablaEncaminamiento().get(i).getNextHop().split("[:]");
+                siguienteSalto = InetAddress.getByName(nh[0]);
+                byte addfi[] = "xx".getBytes();
+                byte routeTag[] = "00".getBytes();
+                byte ipv4[] = ip.getAddress();
+                byte subMask[] = mask.getAddress();
+                byte nextHop[] = siguienteSalto.getAddress();
+                byte metric[] = "0001".getBytes();
+                arrayBits.write(addfi);
+                arrayBits.write(routeTag);
+                arrayBits.write(ipv4);
+                arrayBits.write(subMask);
+                arrayBits.write(nextHop);
+                arrayBits.write(metric);
+
+            }
 
         } catch (Exception e) {
             e.getMessage();
@@ -296,8 +279,9 @@ public class main extends TimerTask{
     }
 
     public void run() {
+        ArrayList<tupla> tablaVecinos = new ArrayList<tupla>();
         DatagramSocket socketUDP = null;
-        InetAddress ipv4,mask,nextHop;
+        InetAddress ipv4, mask, nextHop;
         System.out.println("\n\nRIP en modo cliente");
         byte[] mensaje = "cliente".getBytes();
         byte[] mensajeRecibido = new byte[1024];
@@ -307,45 +291,77 @@ public class main extends TimerTask{
             socketUDP.setSoTimeout(2000);
             DatagramPacket peticionUDP = new DatagramPacket(mensaje, mensaje.length, ipv4, 7000);
             socketUDP.send(peticionUDP);
-            DatagramPacket datagramaRecibido = new DatagramPacket(mensajeRecibido,mensajeRecibido.length);
+            DatagramPacket datagramaRecibido = new DatagramPacket(mensajeRecibido, mensajeRecibido.length);
             socketUDP.receive(datagramaRecibido);
-            mensajeRecibido = Arrays.copyOfRange(datagramaRecibido.getData(),0,datagramaRecibido.getLength());
-            ByteArrayOutputStream bufferArray= new ByteArrayOutputStream();
-            bufferArray.write(mensajeRecibido[8]);
-            bufferArray.write(mensajeRecibido[9]);
-            bufferArray.write(mensajeRecibido[10]);
-            bufferArray.write(mensajeRecibido[11]);
-            byte ip[] = bufferArray.toByteArray();
-            bufferArray.reset();
-            bufferArray.write(mensajeRecibido[12]);
-            bufferArray.write(mensajeRecibido[13]);
-            bufferArray.write(mensajeRecibido[14]);
-            bufferArray.write(mensajeRecibido[15]);
-            byte submask[] = bufferArray.toByteArray();
-            bufferArray.reset();
-            bufferArray.write(mensajeRecibido[16]);
-            bufferArray.write(mensajeRecibido[17]);
-            bufferArray.write(mensajeRecibido[18]);
-            bufferArray.write(mensajeRecibido[19]);
-            byte nextH[] = bufferArray.toByteArray();
-            ipv4 = InetAddress.getByAddress(ip);
-            mask = InetAddress.getByAddress(submask);
-            nextHop = InetAddress.getByAddress(nextH);
+            mensajeRecibido = Arrays.copyOfRange(datagramaRecibido.getData(), 0, datagramaRecibido.getLength());
+
+            int totalRIP = (mensajeRecibido.length - 4) / 20;
+
+            ByteArrayOutputStream bufferArray = new ByteArrayOutputStream();
             System.out.println("Paquete recibido con exito.");
-            System.out.println("IPv4: " + ipv4.getHostAddress() + " || Mascara de subred: " + mask.getHostAddress() + " || Siguiente Salto: " + nextHop.getHostAddress());
-            prueba();
+            int inicio = 4;
+            for (int i = 0; i < totalRIP ; i++) {
+                //address family identifier (2)
+                bufferArray.reset();
+                for (int j = inicio; j < inicio + 2 ; j++) {
+                    bufferArray.write(mensajeRecibido[j]);
+                }
+                String addfamilyid = new String(bufferArray.toByteArray());
+                inicio = inicio + 2;
+
+                //Route Tag (2)
+                bufferArray.reset();
+                for (int j = inicio; j < inicio + 2 ; j++) {
+                    bufferArray.write(mensajeRecibido[j]);
+                }
+                String routeTag = new String(bufferArray.toByteArray());
+                inicio = inicio + 2;
+
+                //IPv4 address (4)
+                bufferArray.reset();
+                for (int j = inicio; j < inicio + 4 ; j++) {
+                    bufferArray.write(mensajeRecibido[j]);
+                }
+                ipv4 = InetAddress.getByAddress(bufferArray.toByteArray());
+                inicio = inicio + 4;
+
+                //Subnet Mask (4)
+                bufferArray.reset();
+                for (int j = inicio; j < inicio + 4 ; j++) {
+                    bufferArray.write(mensajeRecibido[j]);
+                }
+                mask = InetAddress.getByAddress(bufferArray.toByteArray());
+                inicio = inicio + 4;
+
+                //  Next Hop (4)
+                bufferArray.reset();
+                for (int j = inicio; j < inicio + 4 ; j++) {
+                    bufferArray.write(mensajeRecibido[j]);
+                }
+                nextHop = InetAddress.getByAddress(bufferArray.toByteArray());
+                inicio = inicio + 4;
+
+                //  Metric
+                bufferArray.reset();
+                for (int j = inicio; j < inicio + 4 ; j++) {
+                    bufferArray.write(mensajeRecibido[j]);
+                }
+                String metrica = new String(bufferArray.toByteArray());
+                inicio = inicio + 4;
+                tablaVecinos.add(new tupla(ipv4.getHostAddress(),nextHop.getHostAddress(),metrica,mask.getHostAddress()));
+            }
         } catch (Exception e) {
             socketUDP.close();
         }
 
+        algoritmo(tablaVecinos);
+
+
     }
 
-    public static void prueba(){
-        System.out.println("Esto es una prueba, si entra, siuu");
-        for (int i = 0; i < nodo.getTablaEncaminamiento().size(); i++) {
-            System.out.println(nodo.getTablaEncaminamiento().get(i).getIPdestino());
-        }
-
+    public static void algoritmo(ArrayList<tupla> tablaVecinos) {
+        System.out.println("Esto es una prueba:");
+        sysoTablaEncaminamiento(tablaVecinos);
     }
 
 }

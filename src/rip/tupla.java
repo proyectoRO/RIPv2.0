@@ -9,7 +9,8 @@ public class tupla {
 	private String nextHop;
 	private String interfaz;
 	private int metrica;
-	private String modificado; 
+	private String modificado;
+	private String mascara;
 	
 	/*
 	 * De acuerdo al RFC del protocolo RIP, cada entrada en la tabla de encaminamiento ha de contar con:
@@ -33,12 +34,20 @@ public class tupla {
 		this.modificado = sdf.format(cal.getTime());
 	}
 
+	public tupla(String ipVecino, String nexthop, String metrica, String mascara){
+		this.IPdestino = ipVecino;
+		this.nextHop = nexthop;
+		this.metrica = Integer.parseInt(metrica);
+		this.mascara = mascara;
+
+	}
+
 	public String getIPdestino() {
 		return IPdestino;
 	}
 
-	public void setIPdestino(nodoVecino vecino) {
-		this.IPdestino = vecino.getIP();
+	public void setIPdestino(String ip) {
+		this.IPdestino = ip;
 	}
 
 	public String getNextHop() {
@@ -63,6 +72,10 @@ public class tupla {
 
 	public void setMetrica(int metrica) {
 		this.metrica = metrica;
+	}
+
+	public String getMascara(){
+		return this.mascara;
 	}
 
 	public String getModificado() {
