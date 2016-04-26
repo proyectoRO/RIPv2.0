@@ -1,14 +1,19 @@
 package rip;
 
 import java.io.*;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
+import java.net.*;
+import java.nio.ByteBuffer;
+import java.sql.Time;
 import java.util.*;
 
-public class main extends TimerTask {
+public class main {
 
     public static rip.nodo nodo = new nodo();
+    /*
+    declaradas para pruebas.
+     */
+    final static int puertoEscuchando = 6000;
+    final static int puertoVecino = 5050;
 
     public static void main(String args[]) {
         try {
@@ -16,32 +21,17 @@ public class main extends TimerTask {
             String hostIP = address.getHostAddress();
             String hostName = address.getHostName();
             String ruta = "/Users/Ruben/Desktop/";
-            System.out.println("IP: " + hostIP + "\n" + "Name: " + hostName);
+            System.out.println("IP: " + hostIP + " || Name: " + hostName +"\n");
             nodo.setIP(hostIP);
             nodo.setNombre(hostName);
             nodo.setPuerto(5512);
             parseTopo(ruta, hostIP);
-            System.out.println(nodo.toString());
-            System.out.println("Llamando a tabla de encaminamiento...");
+            //System.out.println(nodo.toString());
             tablaEncaminamiento();
-            System.out.println(nodo.getVecinos().toString());
+            //System.out.println(nodo.getVecinos().toString());
             sysoTablaEncaminamiento(nodo.getTablaEncaminamiento());
-
-            // Socket UDP.
-            System.out.println("Estableciendo comunicacion...");
-            byte mensajeCliente[] = new byte[1024];
-            Timer tiempo = new Timer();
-            tiempo.schedule(new main(), 10000, 10000);
-            DatagramSocket socketUDP = new DatagramSocket(5050);
-
-            while (true) {
-                System.out.println("\n\nRIP en modo servidor");
-                DatagramPacket peticion = new DatagramPacket(mensajeCliente, mensajeCliente.length);
-                socketUDP.receive(peticion);
-                DatagramPacket datagramaServidor = new DatagramPacket(riptobyte(), riptobyte().length, peticion.getAddress(), peticion.getPort());
-                socketUDP.send(datagramaServidor);
-            }
-
+            System.out.println("\n\n");
+            protocoloRIP();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -52,16 +42,12 @@ public class main extends TimerTask {
     public static byte[] riptobyte() {
         /*
             RIP PKT FORMAT
-
             ...................................................
             comand(1)     |    version(1)   |   must be zero(2)
             ...................................................
                             RIP ENTRY(20)
             ...................................................
-
-
              RIP ENTRY:
-
              ..................................................
              address family identifier (2)  |    Route Tag (2)
              ..................................................
@@ -278,90 +264,130 @@ public class main extends TimerTask {
         }
     }
 
-    public void run() {
-        ArrayList<tupla> tablaVecinos = new ArrayList<tupla>();
+
+    public static void protocoloRIP() {
+        // Socket UDP.
+        byte mensajeRIP[] = new byte[1024];
         DatagramSocket socketUDP = null;
-        InetAddress ipv4, mask, nextHop;
-        System.out.println("\n\nRIP en modo cliente");
-        byte[] mensaje = "cliente".getBytes();
-        byte[] mensajeRecibido = new byte[1024];
         try {
-            ipv4 = InetAddress.getByName("192.168.0.156");
-            socketUDP = new DatagramSocket();
-            socketUDP.setSoTimeout(2000);
-            DatagramPacket peticionUDP = new DatagramPacket(mensaje, mensaje.length, ipv4, 7000);
-            socketUDP.send(peticionUDP);
-            DatagramPacket datagramaRecibido = new DatagramPacket(mensajeRecibido, mensajeRecibido.length);
-            socketUDP.receive(datagramaRecibido);
-            mensajeRecibido = Arrays.copyOfRange(datagramaRecibido.getData(), 0, datagramaRecibido.getLength());
+            socketUDP = new DatagramSocket(puertoEscuchando);
+            while (true) {
+                Random rand = new Random();
+                int simbolo = rand.nextInt(2);
+                float numAleat = rand.nextFloat() * 3;
+                //System.out.println("\nsimbolo: " + simbolo + " numAleat: " + numAleat);
+                float tiempo;
+                if (simbolo == 0) {
+                    tiempo = (10000) + numAleat;
+                } else {
+                    tiempo = (10000) - numAleat;
+                }
+                long timeStart;
+                try {
+                    while (true) {
+                        socketUDP.setSoTimeout((int) tiempo);
+                        //System.out.println("Time Clock: " + tiempo);
+                        DatagramPacket paqueteTabla = new DatagramPacket(mensajeRIP, mensajeRIP.length);
+                        timeStart = System.currentTimeMillis();
+                        socketUDP.receive(paqueteTabla);
+                        //seteamos el reloj
+                        tiempo = tiempo - (int) (System.currentTimeMillis() - timeStart);
+                        //seteamos el mensajeRIP a la longitud real.
+                        mensajeRIP = Arrays.copyOfRange(paqueteTabla.getData(), 0, paqueteTabla.getLength());
+                        algoritmo(mensajeRIP);
+                    }
+                } catch (SocketTimeoutException ste) {
+                    enviarTabla();
+                } catch (IOException ioe) {
+                    ioe.getMessage();
+                    socketUDP.close();
+                }
+            }
+        } catch (SocketException se) {
+            se.getMessage();
+            socketUDP.close();
+        }
+    }
 
-            int totalRIP = (mensajeRecibido.length - 4) / 20;
-
+    public static void algoritmo(byte mensajeRIP[]) {
+        ArrayList<tupla> tablaVecinos = new ArrayList<tupla>();
+        try {
+            int totalRIP = (mensajeRIP.length - 4) / 20;
+            InetAddress ipv4, mask, nextHop;
             ByteArrayOutputStream bufferArray = new ByteArrayOutputStream();
-            System.out.println("Paquete recibido con exito.");
+            System.out.println("\n\nTabla de encaminamiento de los vecinos recibido con exito. Tamaño paquete: " + mensajeRIP.length +"\n");
             int inicio = 4;
-            for (int i = 0; i < totalRIP ; i++) {
+            for (int i = 0; i < totalRIP; i++) {
                 //address family identifier (2)
                 bufferArray.reset();
-                for (int j = inicio; j < inicio + 2 ; j++) {
-                    bufferArray.write(mensajeRecibido[j]);
+                for (int j = inicio; j < inicio + 2; j++) {
+                    bufferArray.write(mensajeRIP[j]);
                 }
                 String addfamilyid = new String(bufferArray.toByteArray());
                 inicio = inicio + 2;
 
                 //Route Tag (2)
                 bufferArray.reset();
-                for (int j = inicio; j < inicio + 2 ; j++) {
-                    bufferArray.write(mensajeRecibido[j]);
+                for (int j = inicio; j < inicio + 2; j++) {
+                    bufferArray.write(mensajeRIP[j]);
                 }
                 String routeTag = new String(bufferArray.toByteArray());
                 inicio = inicio + 2;
 
                 //IPv4 address (4)
                 bufferArray.reset();
-                for (int j = inicio; j < inicio + 4 ; j++) {
-                    bufferArray.write(mensajeRecibido[j]);
+                for (int j = inicio; j < inicio + 4; j++) {
+                    bufferArray.write(mensajeRIP[j]);
                 }
                 ipv4 = InetAddress.getByAddress(bufferArray.toByteArray());
                 inicio = inicio + 4;
 
                 //Subnet Mask (4)
                 bufferArray.reset();
-                for (int j = inicio; j < inicio + 4 ; j++) {
-                    bufferArray.write(mensajeRecibido[j]);
+                for (int j = inicio; j < inicio + 4; j++) {
+                    bufferArray.write(mensajeRIP[j]);
                 }
                 mask = InetAddress.getByAddress(bufferArray.toByteArray());
                 inicio = inicio + 4;
 
                 //  Next Hop (4)
                 bufferArray.reset();
-                for (int j = inicio; j < inicio + 4 ; j++) {
-                    bufferArray.write(mensajeRecibido[j]);
+                for (int j = inicio; j < inicio + 4; j++) {
+                    bufferArray.write(mensajeRIP[j]);
                 }
                 nextHop = InetAddress.getByAddress(bufferArray.toByteArray());
                 inicio = inicio + 4;
 
                 //  Metric
                 bufferArray.reset();
-                for (int j = inicio; j < inicio + 4 ; j++) {
-                    bufferArray.write(mensajeRecibido[j]);
+                for (int j = inicio; j < inicio + 4; j++) {
+                    bufferArray.write(mensajeRIP[j]);
                 }
                 String metrica = new String(bufferArray.toByteArray());
                 inicio = inicio + 4;
-                tablaVecinos.add(new tupla(ipv4.getHostAddress(),nextHop.getHostAddress(),metrica,mask.getHostAddress()));
+                tablaVecinos.add(new tupla(ipv4.getHostAddress(), nextHop.getHostAddress(), metrica, mask.getHostAddress()));
             }
+            sysoTablaEncaminamiento(tablaVecinos);
         } catch (Exception e) {
+            e.getMessage();
+        }
+
+    }
+
+    public static void enviarTabla() {
+        DatagramSocket socketUDP = null;
+        DatagramPacket paqueteTabla = null;
+        InetAddress ipv4;
+        System.out.println("\n\nEnviado tabla de encaminamiento a los vecinos...\n");
+        try {
+            ipv4 = InetAddress.getByName("192.168.0.156");
+            socketUDP = new DatagramSocket();
+            paqueteTabla = new DatagramPacket(riptobyte(), riptobyte().length, ipv4, puertoVecino);
+            socketUDP.send(paqueteTabla);
+        } catch (Exception e) {
+            e.getMessage();
             socketUDP.close();
         }
 
-        algoritmo(tablaVecinos);
-
-
     }
-
-    public static void algoritmo(ArrayList<tupla> tablaVecinos) {
-        System.out.println("Esto es una prueba:");
-        sysoTablaEncaminamiento(tablaVecinos);
-    }
-
 }
