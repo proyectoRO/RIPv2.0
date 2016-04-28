@@ -34,11 +34,12 @@ public class tupla {
 		this.modificado = sdf.format(cal.getTime());
 	}
 
-	public tupla(String ipVecino, String nexthop, String metrica, String mascara){
+	public tupla(String ipVecino, String nexthop, int metrica, String mascara, String interfaz){
 		this.IPdestino = ipVecino;
 		this.nextHop = nexthop;
-		this.metrica = Integer.parseInt(metrica);
+		this.metrica = metrica;
 		this.mascara = mascara;
+		this.interfaz = interfaz;
 
 	}
 

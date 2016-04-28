@@ -1,6 +1,7 @@
 package rip;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.sql.Time;
@@ -21,7 +22,7 @@ public class main {
             String hostIP = address.getHostAddress();
             String hostName = address.getHostName();
             String ruta = "/Users/Ruben/Desktop/";
-            System.out.println("IP: " + hostIP + " || Name: " + hostName +"\n");
+            System.out.println("IP: " + hostIP + " || Name: " + hostName + "\n");
             nodo.setIP(hostIP);
             nodo.setNombre(hostName);
             nodo.setPuerto(5512);
@@ -66,38 +67,50 @@ public class main {
         InetAddress siguienteSalto;
         try {
             arrayBits = new ByteArrayOutputStream();
-            byte comand[] = "2".getBytes();
-            byte version[] = "2".getBytes();
-            byte mbz[] = "00".getBytes();
-            arrayBits.write(comand);
-            arrayBits.write(version);
-            arrayBits.write(mbz);
+            arrayBits.write(numToByte(1, 2)); //comand(1)
+            arrayBits.write(numToByte(1, 2)); //version(1)
+            arrayBits.write(numToByte(2, 0)); //must be zero(2)
             for (int i = 0; i < nodo.getTablaEncaminamiento().size(); i++) {
                 ip = InetAddress.getByName(nodo.getTablaEncaminamiento().get(i).getIPdestino());
                 mask = InetAddress.getByName("255.255.255.0");
                 String nh[] = nodo.getTablaEncaminamiento().get(i).getNextHop().split("[:]");
                 siguienteSalto = InetAddress.getByName(nh[0]);
-                byte addfi[] = "xx".getBytes();
-                byte routeTag[] = "00".getBytes();
                 byte ipv4[] = ip.getAddress();
                 byte subMask[] = mask.getAddress();
                 byte nextHop[] = siguienteSalto.getAddress();
-                byte metric[] = "0001".getBytes();
-                arrayBits.write(addfi);
-                arrayBits.write(routeTag);
-                arrayBits.write(ipv4);
-                arrayBits.write(subMask);
-                arrayBits.write(nextHop);
-                arrayBits.write(metric);
-
+                arrayBits.write(numToByte(2, 2)); //address family indentifier(2)
+                arrayBits.write(numToByte(2, 0)); //Route Tag(2)
+                arrayBits.write(ipv4); //IPv4
+                arrayBits.write(subMask); //Subnet Mask(4)
+                arrayBits.write(nextHop); //Next Hop (4)
+                arrayBits.write(numToByte(4, nodo.getTablaEncaminamiento().get(i).getMetrica())); //Metric (4)
             }
-
         } catch (Exception e) {
             e.getMessage();
         }
         return arrayBits.toByteArray();
     }
 
+
+    public static byte[] numToByte(int sizeInBytes, int numToConvert) {
+        ByteBuffer byteBuffer = null;
+        if (sizeInBytes == 2) {
+            short numShort = (short) numToConvert;
+            byteBuffer = ByteBuffer.allocate(2);
+            byteBuffer.putShort(numShort);
+        } else {
+            if (sizeInBytes == 4) {
+                int numInt = numToConvert;
+                byteBuffer = ByteBuffer.allocate(4);
+                byteBuffer.putInt(numInt);
+            } else {
+                byte numByte = (byte) numToConvert;
+                byteBuffer = ByteBuffer.allocate(1);
+                byteBuffer.put(numByte);
+            }
+        }
+        return byteBuffer.array();
+    }
 
     public static void tablaEncaminamiento() {
         ArrayList<nodoVecino> vecinos = nodo.getVecinos();
@@ -106,7 +119,7 @@ public class main {
             String IPvecino = (vecinos.get(i)).getIP();
             int puertoVecino = (vecinos.get(i)).getPuerto();
             IPvecino = IPvecino + ":" + Integer.toString(puertoVecino);
-            tupla tupla = new tupla(vecinos.get(i), IPvecino, "default", 0);
+            tupla tupla = new tupla(vecinos.get(i), IPvecino, "default", 1);
             /*
             Para cada vecino, ruta conectada, metrica 1.
              */
@@ -121,7 +134,7 @@ public class main {
         final Object[][] tabla = new String[4][];
         tabla[0] = new String[]{"IP Vecino", "Sig. Salto", "Interfaz", "Métrica"};
 
-        for (int i = 1; i - 1 < tablaEnc.size(); i++) {
+        for (int i = 1; i <= tablaEnc.size(); i++) {
             tabla[i] = new String[]{(tablaEnc.get(i - 1)).getIPdestino(), (tablaEnc.get(i - 1)).getNextHop(),
                     (tablaEnc.get(i - 1)).getInterfaz(), Integer.toString((tablaEnc.get(i - 1)).getMetrica())};
         }
@@ -315,25 +328,9 @@ public class main {
             int totalRIP = (mensajeRIP.length - 4) / 20;
             InetAddress ipv4, mask, nextHop;
             ByteArrayOutputStream bufferArray = new ByteArrayOutputStream();
-            System.out.println("\n\nTabla de encaminamiento de los vecinos recibido con exito. Tamaño paquete: " + mensajeRIP.length +"\n");
-            int inicio = 4;
+            System.out.println("\n\nTabla de encaminamiento de los vecinos recibido con exito. Tamaño paquete: " + mensajeRIP.length + "\n");
+            int inicio = 8;
             for (int i = 0; i < totalRIP; i++) {
-                //address family identifier (2)
-                bufferArray.reset();
-                for (int j = inicio; j < inicio + 2; j++) {
-                    bufferArray.write(mensajeRIP[j]);
-                }
-                String addfamilyid = new String(bufferArray.toByteArray());
-                inicio = inicio + 2;
-
-                //Route Tag (2)
-                bufferArray.reset();
-                for (int j = inicio; j < inicio + 2; j++) {
-                    bufferArray.write(mensajeRIP[j]);
-                }
-                String routeTag = new String(bufferArray.toByteArray());
-                inicio = inicio + 2;
-
                 //IPv4 address (4)
                 bufferArray.reset();
                 for (int j = inicio; j < inicio + 4; j++) {
@@ -357,15 +354,14 @@ public class main {
                 }
                 nextHop = InetAddress.getByAddress(bufferArray.toByteArray());
                 inicio = inicio + 4;
-
                 //  Metric
                 bufferArray.reset();
                 for (int j = inicio; j < inicio + 4; j++) {
                     bufferArray.write(mensajeRIP[j]);
                 }
-                String metrica = new String(bufferArray.toByteArray());
-                inicio = inicio + 4;
-                tablaVecinos.add(new tupla(ipv4.getHostAddress(), nextHop.getHostAddress(), metrica, mask.getHostAddress()));
+                int metrica = new BigInteger(bufferArray.toByteArray()).intValue();
+                inicio = inicio + 8;
+                tablaVecinos.add(new tupla(ipv4.getHostAddress(), nextHop.getHostAddress(), metrica, mask.getHostAddress(),"default"));
             }
             sysoTablaEncaminamiento(tablaVecinos);
         } catch (Exception e) {
