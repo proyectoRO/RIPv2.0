@@ -10,7 +10,7 @@ public class nodo {
 	protected Boolean subred=false;
 	protected int puerto;
 	protected ArrayList<subred> subredes = new ArrayList<>();
-	protected ArrayList<tupla> tablaEncaminamiento = new ArrayList<tupla>();
+	protected ArrayList<tupla> tablaEncaminamiento = new ArrayList<>();
 	
 	public nodo(){
 	}
