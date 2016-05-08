@@ -2,6 +2,7 @@ package rip;
 
 public class nodoVecino extends nodo{
 
+	private long timer;
 	
 	public nodoVecino(){
 	}
@@ -26,6 +27,14 @@ public class nodoVecino extends nodo{
 	public nodoVecino(String IP){
 		this.IP = IP;
 		this.puerto = 5512;
+	}
+
+	public long getTimer(){
+		return this.timer;
+	}
+
+	public void setTimer(long timeSystem){
+		this.timer = timeSystem;
 	}
 
 	

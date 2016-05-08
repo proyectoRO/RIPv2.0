@@ -4,33 +4,50 @@ import java.io.*;
 import java.math.BigInteger;
 import java.net.*;
 import java.nio.ByteBuffer;
-import java.sql.Time;
 import java.util.*;
 
 public class main {
 
     static rip.nodo nodo = new nodo();
     static ArrayList<tupla> tablaVecinos = new ArrayList<tupla>();
-    /*
-    declaradas para pruebas.
-     */
-    final static int puertoEscuchando = 6000;
-    final static int puertoVecino = 5050;
+    static String ipNodo = null;
+    static int puerto;
+
 
     public static void main(String args[]) {
         try {
             InetAddress address = InetAddress.getLocalHost();
-            String hostIP = address.getHostAddress();
             String hostName = address.getHostName();
-            String ruta = "/Users/Ruben/Desktop/";
-            System.out.println("IP: " + hostIP + " || Name: " + hostName + "\n");
-            nodo.setIP(hostIP);
+            String hostIP = address.getHostAddress();
+            if (!args[0].equals(null)) {
+                String argEntrada[] = args[0].trim().split("[:]");
+                if (argEntrada.length == 1) {
+                    //usar codigo david para comprobar la validez de la ip introducida por linea de comandos.
+                    ipNodo = argEntrada[0].trim();
+                    puerto = 5512;
+                } else {
+                    if (argEntrada.length == 2) {
+                        ipNodo = argEntrada[0].trim();
+                        puerto = Integer.parseInt(argEntrada[1].trim());
+                    } else {
+                        System.out.println("Datos introducidos por linea de comandos incorrectos");
+                        System.exit(-1);
+                    }
+                }
+            } else {
+                ipNodo = hostIP;
+                puerto = 5512;
+            }
+            hostIP = ipNodo;
+            String ruta = args[1];
+            System.out.println("IP: " + hostIP + " || Name: " + hostName + " || Puerto: " + puerto + "\n");
+            nodo.setIP(ipNodo);
             nodo.setNombre(hostName);
-            nodo.setPuerto(5512);
+            nodo.setPuerto(puerto);
             parseTopo(ruta, hostIP);
-            //System.out.println(nodo.toString());
+            System.out.println(nodo.toString());
             tablaEncaminamiento();
-            //System.out.println(nodo.getVecinos().toString());
+            System.out.println(nodo.getVecinos().toString());
             sysoTablaEncaminamiento(nodo.getTablaEncaminamiento());
             System.out.println("\n\n");
             protocoloRIP();
@@ -44,6 +61,7 @@ public class main {
         ArrayList<nodoVecino> vecinos = nodo.getVecinos();
 
         for (int i = 0; i < vecinos.size(); i++) {
+            vecinos.get(i).setTimer(System.currentTimeMillis());
             String IPvecino = (vecinos.get(i)).getIP();
             int puertoVecino = (vecinos.get(i)).getPuerto();
             IPvecino = IPvecino + ":" + Integer.toString(puertoVecino);
@@ -55,6 +73,9 @@ public class main {
             tablaEnc.add(tupla);
             nodo.setTablaEncaminamiento(tablaEnc);
         }
+        ArrayList<tupla> miTabla = nodo.getTablaEncaminamiento();
+        miTabla.add(new tupla(ipNodo, ipNodo + ":" + Integer.toString(puerto), 0, "255.255.255.0", "default"));
+        nodo.setTablaEncaminamiento(miTabla);
     }
 
     public static void sysoTablaEncaminamiento(ArrayList<tupla> tablaEnc) {
@@ -97,9 +118,9 @@ public class main {
 
     public static void parseTopo(String ruta, String hostIP) {
         try {
-            File archivo = new File("/Users/Ruben/Desktop/");
+            File archivo = new File(ruta);
             try (BufferedReader br = new BufferedReader(
-                    new FileReader("/Users/Ruben/Desktop/ripconf-" + hostIP + "-" + puertoEscuchando + ".topo.txt"))) {
+                    new FileReader(ruta + "/ripconf-" + hostIP + ".topo.txt"))) {
                 String line = null;
                 while ((line = br.readLine()) != null) {
                     line.trim();
@@ -206,16 +227,14 @@ public class main {
 
 
     public static void protocoloRIP() {
-        // Socket UDP.
         byte mensajeRIP[] = new byte[1024];
         DatagramSocket socketUDP = null;
         try {
-            socketUDP = new DatagramSocket(puertoEscuchando);
+            socketUDP = new DatagramSocket(nodo.getPuerto());
             while (true) {
                 Random rand = new Random();
                 int simbolo = rand.nextInt(2);
                 float numAleat = rand.nextFloat() * 3;
-                //System.out.println("\nsimbolo: " + simbolo + " numAleat: " + numAleat);
                 float tiempo;
                 if (simbolo == 0) {
                     tiempo = (10000) + numAleat;
@@ -226,18 +245,13 @@ public class main {
                 try {
                     while (true) {
                         socketUDP.setSoTimeout((int) tiempo);
-                        //System.out.println("Time Clock: " + tiempo);
                         DatagramPacket paqueteTabla = new DatagramPacket(mensajeRIP, mensajeRIP.length);
                         timeStart = System.currentTimeMillis();
                         socketUDP.receive(paqueteTabla);
-                        //seteamos el reloj
                         tiempo = tiempo - (int) (System.currentTimeMillis() - timeStart);
-                        //seteamos el mensajeRIP a la longitud real.
-                        mensajeRIP = Arrays.copyOfRange(paqueteTabla.getData(), 0, paqueteTabla.getLength());
-                        recibirTabla(mensajeRIP,paqueteTabla.getAddress());
+                        recibirTabla(paqueteTabla.getData(), paqueteTabla.getAddress(), paqueteTabla.getLength());
                     }
                 } catch (SocketTimeoutException ste) {
-                    modificarTabla();
                     enviarTabla();
                 } catch (IOException ioe) {
                     ioe.getMessage();
@@ -250,22 +264,25 @@ public class main {
         }
     }
 
-    public static void recibirTabla(byte mensajeRIP[],InetAddress ipVecino) {
+    public static void recibirTabla(byte paqueteTabla[], InetAddress ipVecino, int tamTabla) {
         try {
+            //seteamos el paqueteTabla recibido por el socket
+            byte mensajeRIP[] = Arrays.copyOfRange(paqueteTabla, 0, tamTabla);
             int totalRIP = (mensajeRIP.length - 4) / 20;
-            InetAddress ipv4, mask, nextHop;
-            String puerto=null;
+            InetAddress ipv4, mask;
+            String puerto = null;
             boolean correcto = false;
             ByteArrayOutputStream bufferArray = new ByteArrayOutputStream();
-            System.out.println("\n\nTabla de encaminamiento de los vecinos recibido con exito. Tamaño paquete: " + mensajeRIP.length + "\n");
+            System.out.println("\n\nTabla de encaminamiento de los vecinos recibida con exito. Tamaño paquete: " + mensajeRIP.length + " IP RECIBIDA: " + ipVecino.getHostAddress());
             for (int i = 0; i < nodo.getVecinos().size(); i++) {
-                if(nodo.getVecinos().get(i).getIP().equals(ipVecino.getHostAddress())){
-                    System.out.println("tabla proviene de un vecino autenticado.");
+                if (nodo.getVecinos().get(i).getIP().equals(ipVecino.getHostAddress())) {
+                    System.out.println("tabla proviene de un vecino autenticado: " + ipVecino.getHostAddress());
                     correcto = true;
                     puerto = Integer.toString(nodo.getVecinos().get(i).getPuerto());
+                    nodo.getVecinos().get(i).setTimer(System.currentTimeMillis());
                 }
             }
-            if(correcto) {
+            if (correcto) {
                 int inicio = 8;
                 for (int i = 0; i < totalRIP; i++) {
                     //IPv4 address (4)
@@ -290,8 +307,10 @@ public class main {
                     }
                     int metrica = new BigInteger(bufferArray.toByteArray()).intValue();
                     inicio = inicio + 8;
-                    tablaVecinos.add(new tupla(ipv4.getHostAddress(), ipVecino.getHostAddress()+":"+puerto, metrica, mask.getHostAddress(), "default"));
+                    tablaVecinos.add(new tupla(ipv4.getHostAddress(), ipVecino.getHostAddress() + ":" + puerto, metrica, mask.getHostAddress(), "default"));
+
                 }
+                modificarTabla();
             }
         } catch (Exception e) {
             e.getMessage();
@@ -300,17 +319,35 @@ public class main {
     }
 
     public static void modificarTabla() {
-        boolean existeIP = false;
+        ArrayList<String> ipsConocidas = new ArrayList<String>();
+        for (int i = 0; i < nodo.getTablaEncaminamiento().size(); i++) {
+            ipsConocidas.add(nodo.getTablaEncaminamiento().get(i).getIPdestino());
+        }
+
         for (int i = 0; i < tablaVecinos.size(); i++) {
-            for (int j = 0; j < nodo.getTablaEncaminamiento().size(); j++) {
-                if (nodo.getTablaEncaminamiento().get(j).getIPdestino().equals(tablaVecinos.get(i).getIPdestino())) {
-                    existeIP = true;
+            if (ipsConocidas.contains(tablaVecinos.get(i).getIPdestino())) {
+                //comparar metrica
+                int puesto = ipsConocidas.indexOf(tablaVecinos.get(i).getIPdestino());
+                tupla tuplaVieja = nodo.getTablaEncaminamiento().get(puesto);
+                int metricaPropia = nodo.getTablaEncaminamiento().get(puesto).getMetrica();
+                int metricaVecino = tablaVecinos.get(i).getMetrica();
+                if (metricaVecino + 1 < metricaPropia) {
+                    nodo.getTablaEncaminamiento().remove(puesto);
+                    tupla tuplaNueva = new tupla(tablaVecinos.get(i).getIPdestino(), tablaVecinos.get(i).getNextHop(),
+                            tablaVecinos.get(i).getMetrica() + 1, tablaVecinos.get(i).getMascara(), tablaVecinos.get(i).getInterfaz());
+                    ArrayList<tupla> vieja = nodo.getTablaEncaminamiento();
+                    vieja.add(tuplaNueva);
+                    nodo.setTablaEncaminamiento(vieja);
                 }
-            }
-            if (!existeIP) {
-                nodo.getTablaEncaminamiento().add(new tupla(tablaVecinos.get(i).getIPdestino(), tablaVecinos.get(i).getNextHop(), tablaVecinos.get(i).getMetrica() + 1, tablaVecinos.get(i).getMascara(), tablaVecinos.get(i).getInterfaz()));
+            } else {
+                tupla tuplaNueva = new tupla(tablaVecinos.get(i).getIPdestino(), tablaVecinos.get(i).getNextHop(),
+                        tablaVecinos.get(i).getMetrica() + 1, tablaVecinos.get(i).getMascara(), tablaVecinos.get(i).getInterfaz());
+                ArrayList<tupla> vieja = nodo.getTablaEncaminamiento();
+                vieja.add(tuplaNueva);
+                nodo.setTablaEncaminamiento(vieja);
             }
         }
+
         tablaVecinos.clear();
     }
 
@@ -321,16 +358,22 @@ public class main {
         System.out.println("\n\nEnviado la siguiente tabla de encaminamiento a los vecinos:\n");
         sysoTablaEncaminamiento(nodo.getTablaEncaminamiento());
         try {
-            ipv4 = InetAddress.getByName("192.168.0.157");
-            socketUDP = new DatagramSocket();
-            paqueteTabla = new DatagramPacket(riptobyte(), riptobyte().length, ipv4, puertoVecino);
-            socketUDP.send(paqueteTabla);
+            for (int i = 0; i < nodo.getVecinos().size(); i++) {
+                String ip = nodo.getVecinos().get(i).getIP();
+                ipv4 = InetAddress.getByName(ip);
+                socketUDP = new DatagramSocket();
+                byte[] rip = riptobyte();
+                paqueteTabla = new DatagramPacket(rip, rip.length, ipv4, nodo.getVecinos().get(i).getPuerto());
+                socketUDP.send(paqueteTabla);
+            }
+
         } catch (Exception e) {
             e.getMessage();
             socketUDP.close();
         }
 
     }
+
 
     public static byte[] riptobyte() {
         /*
@@ -357,15 +400,16 @@ public class main {
         InetAddress ip;
         InetAddress mask;
         InetAddress siguienteSalto;
+        ArrayList<tupla> listaTablaEnc = nodo.getTablaEncaminamiento();
         try {
             arrayBits = new ByteArrayOutputStream();
             arrayBits.write(numToByte(1, 2)); //comand(1)
             arrayBits.write(numToByte(1, 2)); //version(1)
             arrayBits.write(numToByte(2, 0)); //must be zero(2)
-            for (int i = 0; i < nodo.getTablaEncaminamiento().size(); i++) {
-                ip = InetAddress.getByName(nodo.getTablaEncaminamiento().get(i).getIPdestino());
+            for (int i = 0; i < listaTablaEnc.size(); i++) {
+                ip = InetAddress.getByName(listaTablaEnc.get(i).getIPdestino());
                 mask = InetAddress.getByName("255.255.255.0");
-                String nh[] = nodo.getTablaEncaminamiento().get(i).getNextHop().split("[:]");
+                String nh[] = listaTablaEnc.get(i).getNextHop().split("[:]");
                 siguienteSalto = InetAddress.getByName(nh[0]);
                 byte ipv4[] = ip.getAddress();
                 byte subMask[] = mask.getAddress();
@@ -375,7 +419,7 @@ public class main {
                 arrayBits.write(ipv4); //IPv4
                 arrayBits.write(subMask); //Subnet Mask(4)
                 arrayBits.write(nextHop); //Next Hop (4)
-                arrayBits.write(numToByte(4, nodo.getTablaEncaminamiento().get(i).getMetrica())); //Metric (4)
+                arrayBits.write(numToByte(4, listaTablaEnc.get(i).getMetrica())); //Metric (4)
             }
         } catch (Exception e) {
             e.getMessage();
