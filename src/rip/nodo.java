@@ -6,11 +6,11 @@ public class nodo {
 	
 	protected String nombre;
 	protected String IP;
-	protected ArrayList<nodoVecino> vecinos = new ArrayList<>();
+	private ArrayList<nodoVecino> vecinos = new ArrayList<>();
 	protected Boolean subred=false;
 	protected int puerto;
-	protected ArrayList<subred> subredes = new ArrayList<>();
-	protected ArrayList<tupla> tablaEncaminamiento = new ArrayList<>();
+	private ArrayList<subred> subredes = new ArrayList<>();
+	private ArrayList<tupla> tablaEncaminamiento = new ArrayList<>();
 	
 	public nodo(){
 	}
@@ -113,6 +113,7 @@ public class nodo {
 	 */
 
 	public ArrayList<tupla> getTablaEncaminamiento() {
+
 		return tablaEncaminamiento;
 	}
 
@@ -120,4 +121,31 @@ public class nodo {
 		this.tablaEncaminamiento = tablaEncaminamiento;
 	}
 
+	public void modificarTablaEncaminamiento(int indice, tupla nuevaTupla){
+		this.tablaEncaminamiento.remove(indice);
+		this.tablaEncaminamiento.add(nuevaTupla);
+	}
+
+	public void addTupla(tupla nuevaTupla){
+
+		this.tablaEncaminamiento.add(nuevaTupla);
+	}
+
+	public int getMetrica(tupla nuevaTupla){
+		int metrica = 16;
+		for (int i = 0; i < this.tablaEncaminamiento.size(); i++) {
+			if(nuevaTupla.getIPdestino().equals(this.tablaEncaminamiento.get(i).getIPdestino())){
+				metrica =  this.tablaEncaminamiento.get(i).getMetrica();
+			}
+		}
+		return metrica;
+	}
+
+	public void borrarTupla(tupla borrarTupla){
+		for (int i = 0; i < this.tablaEncaminamiento.size(); i++) {
+			if(borrarTupla.getIPdestino().equals(this.tablaEncaminamiento.get(i).getIPdestino())){
+				this.tablaEncaminamiento.remove(i);
+			}
+		}
+	}
 }

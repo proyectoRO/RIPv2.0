@@ -1,17 +1,16 @@
 package rip;
 
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.time.LocalTime;
 
 public class tupla {
 
+	private LocalTime timerTupla;
 	private String IPdestino;
 	private String nextHop;
 	private String interfaz;
 	private int metrica;
-	private String modificado;
 	private String mascara;
-	
+
 	/*
 	 * De acuerdo al RFC del protocolo RIP, cada entrada en la tabla de encaminamiento ha de contar con:
 	 * address: in IP implementations of these algorithms, this will be the IP address of the host or network.
@@ -20,18 +19,17 @@ public class tupla {
 	 * metric: a number, indicating the distance to the destination.
 	 * timer: the amount of time since the entry was last updated.
 	 */
-	
+
 	public tupla(){
 	}
-	
+
 	public tupla(nodoVecino vecino, String nextHop, String interfaz, int metrica){
 		this.interfaz = interfaz;
 		this.metrica = metrica;
 		this.nextHop = nextHop;
 		this.IPdestino = vecino.getIP();
-		Calendar cal = Calendar.getInstance();
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
-		this.modificado = sdf.format(cal.getTime());
+		//this.modificado = LocalTime.now();
+
 	}
 
 	public tupla(String ipVecino, String nexthop, int metrica, String mascara, String interfaz){
@@ -40,7 +38,7 @@ public class tupla {
 		this.metrica = metrica;
 		this.mascara = mascara;
 		this.interfaz = interfaz;
-
+		//this.modificado = LocalTime.now();
 	}
 
 	public String getIPdestino() {
@@ -79,14 +77,16 @@ public class tupla {
 		return this.mascara;
 	}
 
-	public String getModificado() {
-		return modificado;
+	public tupla clonar(){
+		return this;
 	}
 
-	public void setModificado(String modificado) {
-		this.modificado = modificado;
+	public void setTimerTupla(){
+		this.timerTupla = LocalTime.now();
 	}
-	
-	
-	
+
+	public LocalTime getTimerTupla(){
+		return this.timerTupla;
+	}
+
 }
