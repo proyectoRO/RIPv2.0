@@ -28,7 +28,7 @@ public class tupla {
 		this.metrica = metrica;
 		this.nextHop = nextHop;
 		this.IPdestino = vecino.getIP();
-		//this.modificado = LocalTime.now();
+		this.timerTupla = LocalTime.now();
 
 	}
 
@@ -38,7 +38,7 @@ public class tupla {
 		this.metrica = metrica;
 		this.mascara = mascara;
 		this.interfaz = interfaz;
-		//this.modificado = LocalTime.now();
+		this.timerTupla = LocalTime.now();
 	}
 
 	public String getIPdestino() {

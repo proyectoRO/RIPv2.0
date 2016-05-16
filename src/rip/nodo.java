@@ -148,4 +148,12 @@ public class nodo {
 			}
 		}
 	}
+
+	public void actualizarTimer(tupla actualizarTupla){
+		for (int i = 0; i < this.tablaEncaminamiento.size(); i++) {
+			if(actualizarTupla.getIPdestino().equals(this.tablaEncaminamiento.get(i).getIPdestino())){
+				this.tablaEncaminamiento.get(i).setTimerTupla();
+			}
+		}
+	}
 }
