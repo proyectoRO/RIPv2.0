@@ -6,11 +6,10 @@ public class nodo {
 	
 	protected String nombre;
 	protected String IP;
-	private ArrayList<nodoVecino> vecinos = new ArrayList<>();
+	private ArrayList<nodoVecino> vecinos = new ArrayList<nodoVecino>();
 	protected Boolean subred=false;
 	protected int puerto;
-	private ArrayList<subred> subredes = new ArrayList<>();
-	private ArrayList<tupla> tablaEncaminamiento = new ArrayList<>();
+	private ArrayList<tupla> tablaEncaminamiento = new ArrayList<tupla>();
 	
 	public nodo(){
 	}
@@ -20,7 +19,6 @@ public class nodo {
 		this.IP = IP;
 		this.puerto = 5512;
 		this.vecinos = new ArrayList<nodoVecino>();
-		this.subredes = new ArrayList<subred>();
 		this.tablaEncaminamiento = new ArrayList<tupla>();
 	}
 	
@@ -29,7 +27,6 @@ public class nodo {
 		this.IP = IP;
 		this.vecinos = vecinos;
 		this.puerto = 5512;
-		this.subredes = new ArrayList<subred>();
 		this.tablaEncaminamiento = new ArrayList<tupla>();
 	}
 	
@@ -38,7 +35,6 @@ public class nodo {
 		this.IP = IP;
 		this.vecinos = vecinos;
 		this.puerto = puerto;
-		this.subredes = new ArrayList<subred>();
 		this.tablaEncaminamiento = new ArrayList<tupla>();
 	}
 	
@@ -82,13 +78,6 @@ public class nodo {
 		this.puerto = puerto;
 	}
 
-	public ArrayList<subred> getSubredes() {
-		return subredes;
-	}
-
-	public void setSubredes(ArrayList<subred> subredes) {
-		this.subredes = subredes;
-	}
 	
 	public String toString(){
 		String datos="";
@@ -99,12 +88,7 @@ public class nodo {
 			String substr = ("Nodo vecino "+Integer.toString(i)+": "+((this.vecinos).get(i)).toString());
 			datos = datos +"\n"+ substr;
 		}
-		if(this.subred==true){
-			for(int i=0; i<(this.subredes).size();i++){
-				String substr = ("Subred conectada "+Integer.toString(i)+": "+((this.subredes).get(i)).toString());
-				datos = datos +"\n"+ substr;
-			}
-		}
+
 		return ("Nombre del nodo: "+this.nombre+", IP: "+this.IP+", puerto: "+ this.puerto+"\n\n"+datos);
 	}
 	

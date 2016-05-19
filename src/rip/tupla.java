@@ -7,7 +7,6 @@ public class tupla {
 	private LocalTime timerTupla;
 	private String IPdestino;
 	private String nextHop;
-	private String interfaz;
 	private int metrica;
 	private String mascara;
 
@@ -23,21 +22,11 @@ public class tupla {
 	public tupla(){
 	}
 
-	public tupla(nodoVecino vecino, String nextHop, String interfaz, int metrica){
-		this.interfaz = interfaz;
-		this.metrica = metrica;
-		this.nextHop = nextHop;
-		this.IPdestino = vecino.getIP();
-		this.timerTupla = LocalTime.now();
-
-	}
-
-	public tupla(String ipVecino, String nexthop, int metrica, String mascara, String interfaz){
+	public tupla(String ipVecino, String nexthop, int metrica, String mascara){
 		this.IPdestino = ipVecino;
 		this.nextHop = nexthop;
 		this.metrica = metrica;
 		this.mascara = mascara;
-		this.interfaz = interfaz;
 		this.timerTupla = LocalTime.now();
 	}
 
@@ -55,14 +44,6 @@ public class tupla {
 
 	public void setNextHop(String nextHop) {
 		this.nextHop = nextHop;
-	}
-
-	public String getInterfaz() {
-		return interfaz;
-	}
-
-	public void setInterfaz(String interfaz) {
-		this.interfaz = interfaz;
 	}
 
 	public int getMetrica() {

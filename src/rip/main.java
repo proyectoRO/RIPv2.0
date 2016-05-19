@@ -10,46 +10,27 @@ import java.time.LocalTime;
 
 public class main {
 
-    static rip.nodo nodo = new nodo();
-    static ArrayList<tupla> tablaDeVecino = new ArrayList<tupla>();
-    static String ipNodo = null;
-    static int puerto;
+    private static rip.nodo nodo = new nodo();
+    private static ArrayList<tupla> tablaDeVecino = new ArrayList<tupla>();
+    private static ArrayList<String> IPsVecinos = new ArrayList<String>();
+    private static ArrayList<String> IPsSubConect = new ArrayList<String>();
+    private static String ipNodo = null;
+    private static int puerto;
+    private static String nombreInterfaz = "eth0";
+    private static TreeMap<Integer, String> indice = new TreeMap<Integer, String>();
 
 
     public static void main(String args[]) {
         try {
-            InetAddress address = InetAddress.getLocalHost();
-            String hostName = address.getHostName();
-            String hostIP = address.getHostAddress();
-            if (!args[0].equals(null)) {
-                String argEntrada[] = args[0].trim().split("[:]");
-                if (argEntrada.length == 1) {
-                    //usar codigo david para comprobar la validez de la ip introducida por linea de comandos.
-                    ipNodo = argEntrada[0].trim();
-                    puerto = 5512;
-                } else {
-                    if (argEntrada.length == 2) {
-                        ipNodo = argEntrada[0].trim();
-                        puerto = Integer.parseInt(argEntrada[1].trim());
-                    } else {
-                        System.out.println("Datos introducidos por linea de comandos incorrectos");
-                        System.exit(-1);
-                    }
-                }
-            } else {
-                ipNodo = hostIP;
-                puerto = 5512;
-            }
+            String hostIP;
+            getDatos(args);
+            rellenarIndice();
             hostIP = ipNodo;
-            String ruta = args[1];
-            System.out.println("IP: " + hostIP + " || Name: " + hostName + " || Puerto: " + puerto + "\n");
+            System.out.println("IP: " + hostIP + " || Puerto: " + puerto + "\n");
             nodo.setIP(ipNodo);
-            nodo.setNombre(hostName);
             nodo.setPuerto(puerto);
-            parseTopo(ruta, hostIP);
-            //System.out.println(nodo.toString());
+            parseTopo(hostIP);
             tablaEncaminamiento();
-            //System.out.println(nodo.getVecinos().toString());
             sysoTablaEncaminamiento(nodo.getTablaEncaminamiento());
             protocoloRIP();
         } catch (Exception e) {
@@ -58,65 +39,76 @@ public class main {
 
     }
 
+    public static void getDatos(String args[]) throws SocketException {
+        if (args.length == 0) {
+            //codigo para obtener IP de interfaz eth0 y puerto 5512
+            String interfaceName = nombreInterfaz;
+            NetworkInterface networkInterface = NetworkInterface.getByName(interfaceName);
+            Enumeration<InetAddress> inetAddress = networkInterface.getInetAddresses();
+            InetAddress currentAddress;
+            currentAddress = inetAddress.nextElement();
+            while (inetAddress.hasMoreElements()) {
+                currentAddress = inetAddress.nextElement();
+                if (currentAddress instanceof Inet4Address && !currentAddress.isLoopbackAddress()) {
+                    String ip = currentAddress.toString();
+                    //System.out.println(ip.substring(1));
+                    ipNodo = ip.substring(1);
+                    puerto = 5512;
+                    break;
+                }
+            }
+        } else {
+            //codigo para obtener IP de línea de comandos
+            String argEntrada[] = args[0].trim().split("[:]");
+            if (argEntrada.length == 1) {
+                ipNodo = argEntrada[0].trim();
+                puerto = 5512;
+            } else {
+                if (argEntrada.length == 2) {
+                    ipNodo = argEntrada[0].trim();
+                    puerto = Integer.parseInt(argEntrada[1].trim());
+                } else {
+                    System.out.println("Datos introducidos por linea de comandos incorrectos");
+                    System.exit(-1);
+                }
+            }
+        }
+    }
+
     public static void tablaEncaminamiento() {
 
         ArrayList<nodoVecino> vecinos = nodo.getVecinos();
 
         for (int i = 0; i < vecinos.size(); i++) {
-            vecinos.get(i).setTimer();
             String IPvecino = (vecinos.get(i)).getIP();
             int puertoVecino = (vecinos.get(i)).getPuerto();
             IPvecino = IPvecino + ":" + Integer.toString(puertoVecino);
-            tupla tupla = new tupla(vecinos.get(i), IPvecino, "default", 1);
+            tupla tupla = new tupla(vecinos.get(i).getIP(), IPvecino, 1, "255.255.255.255");
             nodo.addTupla(tupla);
         }
+        nodo.addTupla(new tupla(ipNodo, ipNodo + ":" + Integer.toString(puerto), 0, "255.255.255.255"));
 
-        nodo.addTupla(new tupla(ipNodo, ipNodo + ":" + Integer.toString(puerto), 0, "255.255.255.0", "default"));
     }
 
     public static void sysoTablaEncaminamiento(ArrayList<tupla> tablaEnc) {
 
         Object[][] tabla = new String[tablaEnc.size() + 1][];
-        tabla[0] = new String[]{"IP Destino", "Sig. Salto", "Interfaz", "Métrica"};
+        tabla[0] = new String[]{"IP Destino", "Máscara", "Sig. Salto", "Métrica"};
 
         for (int i = 1; i <= tablaEnc.size(); i++) {
-            tabla[i] = new String[]{(tablaEnc.get(i - 1)).getIPdestino(), (tablaEnc.get(i - 1)).getNextHop(),
-                    (tablaEnc.get(i - 1)).getInterfaz(), Integer.toString((tablaEnc.get(i - 1)).getMetrica())};
+            tabla[i] = new String[]{(tablaEnc.get(i - 1)).getIPdestino(), (tablaEnc.get(i - 1)).getMascara(), (tablaEnc.get(i - 1)).getNextHop(), Integer.toString((tablaEnc.get(i - 1)).getMetrica())};
         }
 
         for (Object[] tupla : tabla) {
-            System.out.format("%30s%30s%30s%30s\n", tupla);
+            System.out.format("%25s%25s%25s%25s\n", tupla);
         }
 
     }
 
-    public static String parseSubred(String line) {
-        String dirSubred = "";
-        String[] camposSubred = line.split("[/]");
-        if (camposSubred.length > 2) {
-            System.out.println("Formato incorrecto, más de 2 campos en Subred.");
-            return dirSubred;
-        } else {
-            if ((Integer.parseInt(camposSubred[1]) < 0) || (Integer.parseInt(camposSubred[1]) > 32)) {
-                System.out.println("Formato incorrecto. Número de bits de máscara de subred inválidos.");
-                return dirSubred;
-            } else {
-                String bitsMascara = camposSubred[1];
-                String mascara = parseIp(camposSubred[0]);
-                if (!mascara.equals("")) {
-                    dirSubred = mascara + "/" + bitsMascara;
-                    return dirSubred;
-                } else
-                    return dirSubred;
-            }
-        }
-    }
-
-    public static void parseTopo(String ruta, String hostIP) {
+    public static void parseTopo(String hostIP) {
         try {
-            File archivo = new File(ruta);
             try (BufferedReader br = new BufferedReader(
-                    new FileReader(ruta + "/ripconf-" + hostIP + ".topo.txt"))) {
+                    new FileReader(System.getProperty("user.dir") + "/ripconf-" + hostIP + ".topo.txt"))) {
                 String line = null;
                 while ((line = br.readLine()) != null) {
                     line.trim();
@@ -127,11 +119,10 @@ public class main {
                                 String direccionSubred = parseSubred(line);
                                 if (!direccionSubred.equals("")) {
                                     String[] camposSubred = direccionSubred.split("/");
-                                    subred subred = new subred(camposSubred[0], camposSubred[1]);
-                                    ArrayList<rip.subred> subredes = nodo.getSubredes();
-                                    subredes.add(subred);
-                                    nodo.setSubredes(subredes);
                                     nodo.setSubred(true);
+                                    tupla nuevaSubred = new tupla(camposSubred[0], camposSubred[0], 1, indice.get(Integer.parseInt(camposSubred[1])));
+                                    nodo.addTupla(nuevaSubred);
+                                    IPsSubConect.add(nuevaSubred.getIPdestino());
                                 }
                             } else {
                                 String[] campo2 = line.split("[:]");
@@ -143,6 +134,7 @@ public class main {
                                     ArrayList<nodoVecino> vecinos = nodo.getVecinos();
                                     vecinos.add(vecino);
                                     nodo.setVecinos(vecinos);
+                                    IPsVecinos.add(vecino.getIP());
                                 } else {
                                     String IP = parseIp(line);
                                     if (!IP.equals("")) {
@@ -150,6 +142,7 @@ public class main {
                                         ArrayList<nodoVecino> vecinos = nodo.getVecinos();
                                         vecinos.add(vecino);
                                         nodo.setVecinos(vecinos);
+                                        IPsVecinos.add(vecino.getIP());
                                     }
                                 }
                             }
@@ -167,6 +160,28 @@ public class main {
         } catch (IOException e) {
             e.printStackTrace();
 
+        }
+    }
+
+    public static String parseSubred(String line) {
+        String dirSubred = "";
+        String[] camposSubred = line.split("[/]");
+        if (camposSubred.length > 2) {
+            System.out.println("Formato incorrecto, más de 2 campos en Subred.");
+            return dirSubred;
+        } else {
+            if ((Integer.parseInt(camposSubred[1]) < 1) || (Integer.parseInt(camposSubred[1]) > 32)) {
+                System.out.println("Formato incorrecto. Número de bits de máscara de subred inválidos.");
+                return dirSubred;
+            } else {
+                String bitsMascara = camposSubred[1];
+                String mascara = parseIp(camposSubred[0]);
+                if (!mascara.equals("")) {
+                    dirSubred = mascara + "/" + bitsMascara;
+                    return dirSubred;
+                } else
+                    return dirSubred;
+            }
         }
     }
 
@@ -221,6 +236,41 @@ public class main {
         }
     }
 
+    public static void rellenarIndice() {
+        indice.put(32, "255.255.255.255");
+        indice.put(31, "255.255.255.254");
+        indice.put(30, "255.255.255.252");
+        indice.put(29, "255.255.255.248");
+        indice.put(28, "255.255.255.240");
+        indice.put(27, "255.255.255.224");
+        indice.put(26, "255.255.255.192");
+        indice.put(25, "255.255.255.128");
+        indice.put(24, "255.255.255.0");
+        indice.put(23, "255.255.254.0");
+        indice.put(22, "255.255.252.0");
+        indice.put(21, "255.255.248.0");
+        indice.put(20, "255.255.240.0");
+        indice.put(19, "255.255.224.0");
+        indice.put(18, "255.255.192.0");
+        indice.put(17, "255.255.128.0");
+        indice.put(16, "255.255.0.0");
+        indice.put(15, "255.254.0.0");
+        indice.put(14, "255.252.0.0");
+        indice.put(13, "255.248.0.0");
+        indice.put(12, "255.240.0.0");
+        indice.put(11, "255.224.0.0");
+        indice.put(10, "255.192.0.0");
+        indice.put(9, "255.128.0.0");
+        indice.put(8, "255.0.0.0");
+        indice.put(7, "254.0.0.0");
+        indice.put(6, "252.0.0.0");
+        indice.put(5, "248.0.0.0");
+        indice.put(4, "240.0.0.0");
+        indice.put(3, "224.0.0.0");
+        indice.put(2, "192.0.0.0");
+        indice.put(1, "128.0.0.0");
+    }
+
 
     public static void protocoloRIP() {
         byte mensajeRIP[] = new byte[1024];
@@ -251,9 +301,8 @@ public class main {
                         recibirTabla(paqueteTabla.getData(), paqueteTabla.getAddress(), paqueteTabla.getLength());
                     }
                 } catch (SocketTimeoutException ste) {
-                    revisarFechasVecinos();
-                    revisarFechasNodos();
-                    System.out.println("\n*-------------- Tabla que se envia a nuestros vecinos -------------------* \n");
+                    revisarFechas();
+                    System.out.println("\n*------------------------------ Tabla de encaminamiento del router -------------------------------------* \n");
                     sysoTablaEncaminamiento(nodo.getTablaEncaminamiento());
                     enviarTabla();
                 } catch (IOException ioe) {
@@ -332,15 +381,9 @@ public class main {
                     }
                     int metrica = new BigInteger(bufferArray.toByteArray()).intValue();
                     inicio = inicio + 8;
-                    tablaDeVecino.add(new tupla(ipv4.getHostAddress(), nextHop.getHostAddress() + ":" + puerto, metrica, mask.getHostAddress(), "default"));
+                    tablaDeVecino.add(new tupla(ipv4.getHostAddress(), nextHop.getHostAddress() + ":" + puerto, metrica, mask.getHostAddress()));
 
                 }
-
-                /*
-                Comprobacion Split Horizon with Poison reverse:
-                 */
-                //sysoTablaEncaminamiento(tablaDeVecino);
-                //System.out.println("*--------------------------------------------------------------------*\n\n\n\n\n\n");
                 modificarTabla();
             }
         } catch (Exception e) {
@@ -350,164 +393,123 @@ public class main {
     }
 
     public static void modificarTabla() {
-        revisarFechasVecinos();
-        revisarFechasNodos();
+        revisarFechas();
+        ArrayList<tupla> nuevasEntradas = new ArrayList<>();
         ArrayList<String> misIPs = new ArrayList<>();
         for (int i = 0; i < nodo.getTablaEncaminamiento().size(); i++) {
             misIPs.add(nodo.getTablaEncaminamiento().get(i).getIPdestino());
         }
-        for (int i = 0; i < tablaDeVecino.size(); i++) {
-            //¿Existe entrada en mi tabla de encaminamiento para esa IP en concreto?
-            if (misIPs.contains(tablaDeVecino.get(i).getIPdestino())) {
-                //Mi tabla de encaminamiento contiene ya esa IP destino.
-                //¿El destino de la entrada i de la tabla del vecino soy yo?
-                if (!tablaDeVecino.get(i).getIPdestino().equals(nodo.getIP())) {
-                    //no soy yo su IP destino.
-                    //¿El destino de la entrada i de la tabla de vecino es algun vecino mio?
-                    boolean mivecino = false;
-                    for (int j = 0; j < nodo.getVecinos().size(); j++) {
-                        if (nodo.getVecinos().get(j).getIP().equals(tablaDeVecino.get(i).getIPdestino())) {
-                            mivecino = true;
-                        }
-                    }
-                    if (!mivecino) {
-                        //La ip destino no es ninguno de mis vecinos propios.
-                        //¿Tu eres mi next hop para esa ip destino?
-                        int posicion = 0;
-                        /*
-                        Nesario hacer esto, pues al parecer, si añades algo, no se añade donde estaba el otro, sino que se añade al final.
-                         */
-                        for (int j = 0; j < nodo.getTablaEncaminamiento().size(); j++) {
-                            if (nodo.getTablaEncaminamiento().get(j).getIPdestino().equals(tablaDeVecino.get(i).getIPdestino())) {
-                                posicion = j;
-                                break;
+        for (tupla entradaVecino : tablaDeVecino) {
+            Iterator<tupla> iteradorTabla = nodo.getTablaEncaminamiento().iterator();
+            if (misIPs.contains(entradaVecino.getIPdestino())) {
+                while (iteradorTabla.hasNext()){
+                    tupla entradaPropia = iteradorTabla.next();
+                    if(entradaVecino.getIPdestino().equals(entradaPropia.getIPdestino())){
+                        if(!entradaVecino.getIPdestino().equals(nodo.getIP())){
+                            if(!IPsVecinos.contains(entradaVecino.getIPdestino())){
+                                if(!IPsSubConect.contains(entradaVecino.getIPdestino())){
+                                    //¿Soy yo su next Hop?
+                                    if(entradaPropia.getNextHop().equals(entradaVecino.getNextHop())){
+                                        if(entradaPropia.getMetrica() < 16){
+                                            if(entradaVecino.getMetrica() == 16){
+                                                entradaPropia.setMetrica(16);
+                                                entradaPropia.setTimerTupla();
+                                            }else{
+                                                entradaPropia.setMetrica(entradaVecino.getMetrica() + 1);
+                                                entradaPropia.setTimerTupla();
+                                            }
+                                        }else{
+                                            if(entradaVecino.getMetrica() < 16){
+                                                entradaPropia.setMetrica(entradaVecino.getMetrica() + 1);
+                                                entradaPropia.setTimerTupla();
+                                            }
+                                        }
+                                    }else{
+                                        //¿mejora?
+                                        int metricaPropia = entradaPropia.getMetrica();
+                                        int metricaVecino = entradaVecino.getMetrica();
+                                        if (metricaVecino + 1 < metricaPropia) {
+                                            entradaPropia.setMetrica(metricaVecino + 1);
+                                            entradaPropia.setNextHop(entradaVecino.getNextHop());
+                                            entradaPropia.setTimerTupla();
+                                        } else {
+                                            entradaPropia.setTimerTupla();
+                                        }
+                                    }
+                                }
                             }
                         }
-                        if (nodo.getTablaEncaminamiento().get(posicion).getNextHop().equals(tablaDeVecino.get(i).getNextHop())) {
-                            //si entra aqui, para el destino i de la tabla del vecino, mi vecino es mi next hop, por lo tanto creemos lo que nos diga.
-                            if (tablaDeVecino.get(i).getMetrica() == 16) {
-                                nodo.borrarTupla(tablaDeVecino.get(i));
-                                tupla nuevaTupla = tablaDeVecino.get(i);
-                                nuevaTupla.setTimerTupla();
-                                nodo.addTupla(nuevaTupla);
-                            } else {
-                                nodo.borrarTupla(tablaDeVecino.get(i));
-                                tupla nuevaTupla = tablaDeVecino.get(i);
-                                nuevaTupla.setMetrica(tablaDeVecino.get(i).getMetrica() + 1);
-                                nuevaTupla.setTimerTupla();
-                                nodo.addTupla(nuevaTupla);
-                            }
-                        } else {
-                            //mi vecino no es mi next hop en mi tabla para la IP destino
-                            int metricaPropia = nodo.getTablaEncaminamiento().get(posicion).getMetrica();
-                            int metricaVecino = tablaDeVecino.get(i).getMetrica();
-                            if (metricaVecino + 1 < metricaPropia) {
-                                nodo.borrarTupla(tablaDeVecino.get(i));
-                                tupla nuevaTupla = tablaDeVecino.get(i);
-                                nuevaTupla.setMetrica(tablaDeVecino.get(i).getMetrica() + 1);
-                                nuevaTupla.setTimerTupla();
-                                nodo.addTupla(nuevaTupla);
-                            }else{
-                                nodo.actualizarTimer(tablaDeVecino.get(i));
-                            }
-
-                        }
-
                     }
                 }
             } else {
-                boolean mivecino = false;
-                for (int j = 0; j < nodo.getVecinos().size(); j++) {
-                    if (nodo.getVecinos().get(j).getIP().equals(tablaDeVecino.get(i).getIPdestino())) {
-                        mivecino = true;
+                if (IPsVecinos.contains(entradaVecino.getIPdestino())) {
+                    if (entradaVecino.getMetrica() == 0) {
+                        nuevasEntradas.add(new tupla(entradaVecino.getIPdestino(), entradaVecino.getNextHop(), entradaVecino.getMetrica() + 1, entradaVecino.getMascara()));
                     }
-                }
-                if (!mivecino) {
-                    //Mi tabla de encaminamiento no contiene todavia esa IP destino.
-                    if (tablaDeVecino.get(i).getMetrica() == 16) {
-                        tupla nuevaTupla = tablaDeVecino.get(i);
-                        nuevaTupla.setTimerTupla();
-                        nodo.addTupla(nuevaTupla);
-                    } else {
-                        tupla nuevaTupla = tablaDeVecino.get(i);
-                        nuevaTupla.setMetrica(nuevaTupla.getMetrica() + 1);
-                        nuevaTupla.setTimerTupla();
-                        nodo.addTupla(nuevaTupla);
-                    }
-                }
-            }
-        }
-        tablaDeVecino.clear();
-    }
-
-
-    public static void revisarFechasNodos() {
-        ArrayList<tupla> miTablaRevisar = nodo.getTablaEncaminamiento();
-        LocalTime horaUltUpd = null;
-        LocalTime horaActual = LocalTime.now();
-        ArrayList<String> IPsVecinos = new ArrayList<>();
-
-        for (int i = 0; i < nodo.getTablaEncaminamiento().size(); i++) {
-            System.out.println(nodo.getTablaEncaminamiento().get(i).getIPdestino()+" --- "+nodo.getTablaEncaminamiento().get(i).getTimerTupla());
-            System.out.println(horaActual);
-        }
-
-        for (int i = 0; i < nodo.getVecinos().size(); i++) {
-            IPsVecinos.add(nodo.getVecinos().get(i).getIP());
-        }
-        IPsVecinos.add(nodo.getIP());
-
-        for (int i = 0; i < miTablaRevisar.size(); i++) {
-            if(!IPsVecinos.contains(miTablaRevisar.get(i).getIPdestino())){
-                if(miTablaRevisar.get(i).getMetrica() == 16){
-                    if(miTablaRevisar.get(i).getTimerTupla().plusSeconds(30).isBefore(horaActual)){
-                        System.out.println("\n*----------------------------------------------------------------------*");
-                        System.out.println("El nodo: " + miTablaRevisar.get(i).getIPdestino() + " va a ser eliminado");
-                        System.out.println("*----------------------------------------------------------------------*\n\n");
-                        miTablaRevisar.remove(i);
-                    }
-                }
-            }
-        }
-        nodo.setTablaEncaminamiento(miTablaRevisar);
-    }
-
-    public static void revisarFechasVecinos() {
-        ArrayList<nodoVecino> misVecinosRevisar = nodo.getVecinos();
-        ArrayList<tupla> lothrics = nodo.getTablaEncaminamiento();
-        LocalTime horaUltUpd = null;
-        LocalTime horaActual = LocalTime.now();
-
-        for (int i = 0; i < nodo.getTablaEncaminamiento().size(); i++) {
-            System.out.println(nodo.getTablaEncaminamiento().get(i).getIPdestino()+" --- "+nodo.getTablaEncaminamiento().get(i).getTimerTupla());
-            System.out.println(horaActual);
-        }
-
-        for (int i = 0; i < misVecinosRevisar.size(); i++) {
-            for (int j = 0; j < lothrics.size(); j++) {
-                if(lothrics.get(j).getIPdestino().equals(misVecinosRevisar.get(i).getIP())){
-                    horaUltUpd = lothrics.get(j).getTimerTupla();
-                    if (horaUltUpd.plusSeconds(30).isBefore(horaActual)) {
-                        System.out.println("\n*----------------------------------------------------------------------*");
-                        System.out.println("El vecino: " + misVecinosRevisar.get(i).getIP() + " va a ser eliminado");
-                        System.out.println("*----------------------------------------------------------------------*\n\n");
-                        lothrics.remove(j);
-                    } else {
-                        if (horaUltUpd.plusSeconds(15).isBefore(horaActual)) {
-                            System.out.println("\n*----------------------------------------------------------------------*");
-                            System.out.println("El vecino: " + misVecinosRevisar.get(i).getIP() + " se encuentra caido");
-                            System.out.println("*----------------------------------------------------------------------*\n\n");
-                            tupla nuevaTupla = lothrics.get(j);
-                            lothrics.remove(j);
-                            nuevaTupla.setMetrica(16);
-                            lothrics.add(nuevaTupla);
+                } else {
+                    if (!IPsSubConect.contains(entradaVecino.getIPdestino())) {
+                        if (entradaVecino.getMetrica() == 16) {
+                            nuevasEntradas.add(new tupla(entradaVecino.getIPdestino(), entradaVecino.getNextHop(), entradaVecino.getMetrica(), entradaVecino.getMascara()));
+                        } else {
+                            nuevasEntradas.add(new tupla(entradaVecino.getIPdestino(), entradaVecino.getNextHop(), entradaVecino.getMetrica() + 1, entradaVecino.getMascara()));
                         }
                     }
                 }
             }
-            //if (horaUltUpd.plusMinutes(1).isBefore(horaActual)) {
         }
-        nodo.setTablaEncaminamiento(lothrics);
+        if(nuevasEntradas.size() > 0) {
+            for (int i = 0; i < nuevasEntradas.size(); i++) {
+                nodo.addTupla(nuevasEntradas.get(i));
+            }
+        }
+        nuevasEntradas.clear();
+        tablaDeVecino.clear();
+    }
+
+    public static void revisarFechas() {
+        Iterator<tupla> iterador = nodo.getTablaEncaminamiento().iterator();
+        while (iterador.hasNext()) {
+            tupla entradaTabla = iterador.next();
+            if (!IPsSubConect.contains(entradaTabla.getIPdestino())) {
+                if (!nodo.getIP().equals(entradaTabla.getIPdestino())) {
+                    if (IPsVecinos.contains(entradaTabla.getIPdestino())) {
+                        LocalTime horaUltUpd = entradaTabla.getTimerTupla();
+                        if (horaUltUpd.plusSeconds(90).isBefore(LocalTime.now())) {
+                            //System.out.println("\n*----------------------------------------------------------------------*");
+                            //System.out.println("El vecino: " + entradaTabla.getIPdestino() + " va a ser eliminado");
+                            //System.out.println("*----------------------------------------------------------------------*\n\n");
+                            iterador.remove();
+                        } else {
+                            if (horaUltUpd.plusSeconds(60).isBefore(LocalTime.now())) {
+                                entradaTabla.setMetrica(16);
+                                ///System.out.println("\n*----------------------------------------------------------------------*");
+                                //System.out.println("El vecino: " + entradaTabla.getIPdestino() + " se encuentra caido");
+                                //System.out.println("*----------------------------------------------------------------------*\n\n");
+                            }
+                        }
+                    } else {
+                        String split[] = entradaTabla.getNextHop().split("[:]");
+                        String nh = split[0].trim();
+                        for (int i = 0; i < nodo.getTablaEncaminamiento().size() ; i++) {
+                            if(nh.equals(nodo.getTablaEncaminamiento().get(i).getIPdestino())){
+                                if(nodo.getTablaEncaminamiento().get(i).getMetrica() == 16){
+                                    if(entradaTabla.getMetrica() < 16){
+                                        entradaTabla.setMetrica(16);
+                                        entradaTabla.setTimerTupla();
+                                    }
+                                }
+                            }
+                        }
+                        if(entradaTabla.getMetrica() == 16){
+                            LocalTime horaUltUpd = entradaTabla.getTimerTupla();
+                            if(horaUltUpd.plusSeconds(30).isBefore(LocalTime.now())){
+                                iterador.remove();
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     public static void enviarTabla() {
@@ -519,9 +521,10 @@ public class main {
             for (int i = 0; i < nodo.getVecinos().size(); i++) {
                 for (int j = 0; j < nodo.getTablaEncaminamiento().size(); j++) {
                     tablaEnviar.add(new tupla(nodo.getTablaEncaminamiento().get(j).getIPdestino(), nodo.getTablaEncaminamiento().get(j).getNextHop(),
-                            nodo.getTablaEncaminamiento().get(j).getMetrica(), nodo.getTablaEncaminamiento().get(j).getMascara(),
-                            nodo.getTablaEncaminamiento().get(j).getInterfaz()));
+                            nodo.getTablaEncaminamiento().get(j).getMetrica(), nodo.getTablaEncaminamiento().get(j).getMascara()));
                 }
+
+                //split horizon with poison reverse.
                 for (int j = 0; j < tablaEnviar.size(); j++) {
                     if (tablaEnviar.get(j).getNextHop().equals(nodo.getVecinos().get(i).getIP() + ":" + nodo.getVecinos().get(i).getPuerto()) && (!tablaEnviar.get(j).getIPdestino().equals(nodo.getVecinos().get(i).getIP()))) {
                         tablaEnviar.get(j).setMetrica(16);
@@ -537,7 +540,6 @@ public class main {
                 socketUDP.send(paqueteTabla);
                 tablaEnviar.clear();
             }
-
         } catch (Exception e) {
             e.getMessage();
             socketUDP.close();
@@ -571,7 +573,6 @@ public class main {
         InetAddress ip;
         InetAddress mask;
         InetAddress siguienteSalto;
-        //ArrayList<tupla> listaTablaEnc = nodo.getTablaEncaminamiento();
         try {
             arrayBits = new ByteArrayOutputStream();
             arrayBits.write(numToByte(1, 2)); //comand(1)
@@ -579,7 +580,7 @@ public class main {
             arrayBits.write(numToByte(2, 0)); //must be zero(2)
             for (int i = 0; i < listaTablaEnc.size(); i++) {
                 ip = InetAddress.getByName(listaTablaEnc.get(i).getIPdestino());
-                mask = InetAddress.getByName("255.255.255.0");
+                mask = InetAddress.getByName(listaTablaEnc.get(i).getMascara());
                 String nh[] = listaTablaEnc.get(i).getNextHop().split("[:]");
                 siguienteSalto = InetAddress.getByName(nh[0]);
                 byte ipv4[] = ip.getAddress();
@@ -617,12 +618,6 @@ public class main {
             }
         }
         return byteBuffer.array();
-    }
-
-    public static ArrayList<tupla> clonar(ArrayList<tupla> original) {
-        ArrayList<tupla> clon = new ArrayList<tupla>(nodo.getTablaEncaminamiento().size());
-        for (tupla item : original) clon.add(item.clonar());
-        return clon;
     }
 }
 

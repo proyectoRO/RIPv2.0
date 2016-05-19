@@ -4,7 +4,6 @@ import java.time.LocalTime;
 
 public class nodoVecino extends nodo{
 
-	private LocalTime timer;
 
 	public nodoVecino(){
 	}
@@ -13,36 +12,23 @@ public class nodoVecino extends nodo{
 		this.nombre = nombre;
 		this.IP = IP;
 		this.puerto = 5512;
-		this.timer = LocalTime.now();
 	}
 
 	public nodoVecino(String nombre, String IP, int puerto){
 		this.nombre = nombre;
 		this.IP = IP;
 		this.puerto = puerto;
-		this.timer = LocalTime.now();
 	}
 
 	public nodoVecino(String IP, int puerto){
 		this.IP = IP;
 		this.puerto = puerto;
-		this.timer = LocalTime.now();
 	}
 
 	public nodoVecino(String IP){
 		this.IP = IP;
 		this.puerto = 5512;
-		this.timer = LocalTime.now();
 	}
-
-	public LocalTime getTimer(){
-		return this.timer;
-	}
-
-	public void setTimer(){
-		this.timer = LocalTime.now();
-	}
-
 
 	public String toString(){
 		String subredTS=null;
