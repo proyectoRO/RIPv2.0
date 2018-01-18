@@ -15,7 +15,7 @@ public class main {
     private static ArrayList<String> IPsVecinos = new ArrayList<String>();
     private static ArrayList<String> IPsSubConect = new ArrayList<String>();
     private static String ipNodo = null;
-    private static int puerto;
+    private static int puertoRico;
     private static String nombreInterfaz = "en0";
     private static TreeMap<Integer, String> indice = new TreeMap<Integer, String>();
     private static boolean flag;
@@ -28,9 +28,9 @@ public class main {
             getDatos(args);
             rellenarIndice();
             hostIP = ipNodo;
-            System.out.println("\n\n\nIP: " + hostIP + " || Puerto: " + puerto + "\n");
+            System.out.println("\n\n\nIP: " + hostIP + " || puertoRico: " + puertoRico + "\n");
             nodo.setIP(ipNodo);
-            nodo.setPuerto(puerto);
+            nodo.setpuertoRico(puertoRico);
             parseTopo(hostIP);
             tablaEncaminamiento();
             sysoTablaEncaminamiento(nodo.getTablaEncaminamiento());
@@ -54,7 +54,7 @@ public class main {
 
     public static void getDatos(String args[]) throws SocketException {
         if (args.length == 0) {
-            //codigo para obtener IP de interfaz eth0 y puerto 5512
+            //codigo para obtener IP de interfaz eth0 y puertoRico 5512
             String interfaceName = nombreInterfaz;
             NetworkInterface networkInterface = NetworkInterface.getByName(interfaceName);
             Enumeration<InetAddress> inetAddress = networkInterface.getInetAddresses();
@@ -65,7 +65,7 @@ public class main {
                 if (currentAddress instanceof Inet4Address && !currentAddress.isLoopbackAddress()) {
                     String ip = currentAddress.toString();
                     ipNodo = ip.substring(1);
-                    puerto = 5512;
+                    puertoRico = 5512;
                     break;
                 }
             }
@@ -74,11 +74,11 @@ public class main {
             String argEntrada[] = args[0].trim().split("[:]");
             if (argEntrada.length == 1) {
                 ipNodo = argEntrada[0].trim();
-                puerto = 5512;
+                puertoRico = 5512;
             } else {
                 if (argEntrada.length == 2) {
                     ipNodo = argEntrada[0].trim();
-                    puerto = Integer.parseInt(argEntrada[1].trim());
+                    puertoRico = Integer.parseInt(argEntrada[1].trim());
                 } else {
                     System.out.println("Datos introducidos por linea de comandos incorrectos");
                     System.exit(-1);
@@ -93,12 +93,12 @@ public class main {
 
         for (int i = 0; i < vecinos.size(); i++) {
             String IPvecino = (vecinos.get(i)).getIP();
-            int puertoVecino = (vecinos.get(i)).getPuerto();
-            IPvecino = IPvecino + ":" + Integer.toString(puertoVecino);
+            int puertoRicoVecino = (vecinos.get(i)).getpuertoRico();
+            IPvecino = IPvecino + ":" + Integer.toString(puertoRicoVecino);
             tupla tupla = new tupla(vecinos.get(i).getIP(), IPvecino, 1, "255.255.255.255");
             nodo.addTupla(tupla);
         }
-        nodo.addTupla(new tupla(ipNodo, ipNodo + ":" + Integer.toString(puerto), 0, "255.255.255.255"));
+        nodo.addTupla(new tupla(ipNodo, ipNodo + ":" + Integer.toString(puertoRico), 0, "255.255.255.255"));
 
     }
 
@@ -139,10 +139,10 @@ public class main {
                             } else {
                                 String[] campo2 = line.split("[:]");
                                 if (campo2.length > 1) {
-                                    String IPPuertos = parseIpPuerto(line);
-                                    String[] camposIPPuertos = IPPuertos.split(":");
-                                    nodoVecino vecino = new nodoVecino(camposIPPuertos[0],
-                                            Integer.parseInt(camposIPPuertos[1]));
+                                    String IPpuertoRicos = parseIppuertoRico(line);
+                                    String[] camposIPpuertoRicos = IPpuertoRicos.split(":");
+                                    nodoVecino vecino = new nodoVecino(camposIPpuertoRicos[0],
+                                            Integer.parseInt(camposIPpuertoRicos[1]));
                                     ArrayList<nodoVecino> vecinos = nodo.getVecinos();
                                     vecinos.add(vecino);
                                     nodo.setVecinos(vecinos);
@@ -197,24 +197,24 @@ public class main {
         }
     }
 
-    public static String parseIpPuerto(String line) {
-        String IPPuerto = "";
-        String[] camposIPPuerto = line.split("[:]");
-        if (camposIPPuerto.length > 2) {
-            System.out.println("Formato incorrecto, más de 2 campos en Puerto.");
-            return IPPuerto;
+    public static String parseIppuertoRico(String line) {
+        String IPpuertoRico = "";
+        String[] camposIPpuertoRico = line.split("[:]");
+        if (camposIPpuertoRico.length > 2) {
+            System.out.println("Formato incorrecto, más de 2 campos en puertoRico.");
+            return IPpuertoRico;
         } else {
-            if ((Integer.parseInt(camposIPPuerto[1]) > 65535) || (Integer.parseInt(camposIPPuerto[1]) < 0)) {
-                System.out.println("Formato incorrecto. Número de puerto inválido.");
-                return IPPuerto;
+            if ((Integer.parseInt(camposIPpuertoRico[1]) > 65535) || (Integer.parseInt(camposIPpuertoRico[1]) < 0)) {
+                System.out.println("Formato incorrecto. Número de puertoRico inválido.");
+                return IPpuertoRico;
             } else {
-                String puerto = camposIPPuerto[1];
-                String IP = parseIp(camposIPPuerto[0]);
+                String puertoRico = camposIPpuertoRico[1];
+                String IP = parseIp(camposIPpuertoRico[0]);
                 if (!IP.equals("")) {
-                    IPPuerto = IP + ":" + puerto;
-                    return IPPuerto;
+                    IPpuertoRico = IP + ":" + puertoRico;
+                    return IPpuertoRico;
                 } else
-                    return IPPuerto;
+                    return IPpuertoRico;
             }
         }
     }
@@ -288,7 +288,7 @@ public class main {
         byte mensajeRIP[] = new byte[1024];
         DatagramSocket socketUDP = null;
         try {
-            socketUDP = new DatagramSocket(nodo.getPuerto());
+            socketUDP = new DatagramSocket(nodo.getpuertoRico());
             while (true) {
                 Random rand = new Random();
                 int simbolo = rand.nextInt(2);
@@ -335,7 +335,7 @@ public class main {
             byte mensajeRIP[] = Arrays.copyOfRange(paqueteTabla, 0, tamTabla);
             int totalRIP = (mensajeRIP.length - 24) / 20;
             InetAddress ipv4, mask, nextHop;
-            String puerto = null;
+            String puertoRico = null;
             boolean correcto = false;
             ByteArrayOutputStream bufferArray = new ByteArrayOutputStream();
             for (int i = 0; i < nodo.getVecinos().size(); i++) {
@@ -343,7 +343,7 @@ public class main {
                     System.out.println("\n\n\n\n*--------------------------------------------------------------------*");
                     System.out.println(" Se ha recibido una tabla del vecino: " + ipVecino.getHostAddress());
                     System.out.println("*--------------------------------------------------------------------*\n");
-                    puerto = Integer.toString(nodo.getVecinos().get(i).getPuerto());
+                    puertoRico = Integer.toString(nodo.getVecinos().get(i).getpuertoRico());
                     correcto = true;
                     Iterator<tupla> tablaEnc= nodo.getTablaEncaminamiento().iterator();
                     while (tablaEnc.hasNext()){
@@ -396,7 +396,7 @@ public class main {
                         }
                         int metrica = new BigInteger(bufferArray.toByteArray()).intValue();
                         inicio = inicio + 8;
-                        tablaDeVecino.add(new tupla(ipv4.getHostAddress(), nextHop.getHostAddress() + ":" + puerto, metrica, mask.getHostAddress()));
+                        tablaDeVecino.add(new tupla(ipv4.getHostAddress(), nextHop.getHostAddress() + ":" + puertoRico, metrica, mask.getHostAddress()));
                     }
                     modificarTabla();
                 } else {
@@ -553,16 +553,16 @@ public class main {
                             }
                             //split horizon with poison reverse.
                             for (int j = 0; j < tablaEnviar.size(); j++) {
-                                if (tablaEnviar.get(j).getNextHop().equals(nodo.getVecinos().get(i).getIP() + ":" + nodo.getVecinos().get(i).getPuerto()) && (!tablaEnviar.get(j).getIPdestino().equals(nodo.getVecinos().get(i).getIP()))) {
+                                if (tablaEnviar.get(j).getNextHop().equals(nodo.getVecinos().get(i).getIP() + ":" + nodo.getVecinos().get(i).getpuertoRico()) && (!tablaEnviar.get(j).getIPdestino().equals(nodo.getVecinos().get(i).getIP()))) {
                                     tablaEnviar.get(j).setMetrica(16);
                                 } else {
-                                    tablaEnviar.get(j).setNextHop(nodo.getIP() + ":" + nodo.getPuerto());
+                                    tablaEnviar.get(j).setNextHop(nodo.getIP() + ":" + nodo.getpuertoRico());
                                 }
                             }
                             byte[] rip = riptobyte(tablaEnviar);
                             socketUDP = new DatagramSocket();
                             ipv4 = InetAddress.getByName(nodo.getVecinos().get(i).getIP());
-                            paqueteTabla = new DatagramPacket(rip, rip.length, ipv4, nodo.getVecinos().get(i).getPuerto());
+                            paqueteTabla = new DatagramPacket(rip, rip.length, ipv4, nodo.getVecinos().get(i).getpuertoRico());
                             socketUDP.send(paqueteTabla);
                             tablaEnviar.clear();
                         }
@@ -659,4 +659,3 @@ public class main {
         return byteBuffer.array();
     }
 }
-
